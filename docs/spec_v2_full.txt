@@ -1,0 +1,245 @@
+AUTONOMOUS INCOME ENGINE
+Complete Build Specification  —  Every Detail, No Ambiguity
+Version 5.0  •  May 2026
+1. Vision & Core Principles
+An autonomous multi-stream income engine. AI agents research demand, generate assets, publish to platforms, optimize performance, and find new income streams. The owner approves proposals and provides credentials when needed. Everything else runs itself.
+Two rules above all others: 1. Get money moving before adding complexity. Publisher before orchestrator. Revenue before self-expansion. 2. The system never asks the owner for something it could do itself. Only credentials and strategic approvals require human input.
+
+1.1 Owner Interaction Model
+The owner interacts with the system in exactly three ways:
+Weekly dashboard review (~15 min). Read the report. Review Scout proposals. Approve or ignore.
+Approve a new income stream when Scout proposes one. One tap in the dashboard.
+Provide a credential when asked. The orchestrator gives exact steps. Owner does that one action. System continues automatically.
+Example credential request from orchestrator: 'To launch Pinterest I need your API key. Go to pinterest.com/business -> Developers -> Create App -> copy the access token. Paste it here and I will handle the rest.'
+
+1.2 The Three Layers
+Layer | Who | Does What
+1 - Owner | You | Approves proposals. Provides credentials. Reviews weekly report. Nothing else.
+2 - Orchestrator | orchestrator_agent.py | Receives owner messages. Manages all workers. Routes tasks. Monitors system. Surfaces proposals.
+3 - Workers | All other agents | Execute specific jobs. Never interact with owner directly. All communication routes through orchestrator.
+
+2. Complete File Structure
+/agents    research_agent.py          # Etsy + Fiverr market research, brief generation    design_agent.py            # gpt-image-1 image gen, inline QA, feedback loop    qa_agent.py                # Standalone QA batch pass    publisher_agent.py         # Orchestrates publish flow per platform    performance_agent.py       # Post-publish listing optimization    reporting_agent.py         # Weekly P&L email via SendGrid    orchestrator_agent.py      # Master agent, natural language interface    scout_agent.py             # Weekly opportunity finder    memory_agent.py            # Writes observations after each cycle    prompt_evolution_agent.py  # Tests and promotes prompt improvements    self_healing_agent.py      # Detects and fixes agent failures    anomaly_detector.py        # Flags statistical anomalies    conflict_resolver.py       # Manages resource contention  /publishers    etsy_printify.py           # Etsy OAuth + Printify API logic    fiverr.py                  # Fiverr email-based fulfillment    amazon.py                  # Future    redbubble.py               # Future    blog.py                    # Future  /platform_config    etsy.json    fiverr.json  /core    supabase_client.py         # All DB helpers (BUILT)    cost_logger.py             # API cost logging (BUILT)    spend_monitor.py           # Monthly cap enforcement (BUILT)    cleanup.py                 # File and DB cleanup (BUILT)    error_handler.py           # Retry logic, alerts (BUILT)    emailer.py                 # SendGrid helpers (BUILT)    finance.py                 # Unified P&L, expense tracking    memory_client.py           # Read/write helpers for memory table    job_queue.py               # Enqueue/dequeue job helpers  /scheduler    main.py                    # APScheduler entry point  /dashboard    server.py                  # Flask server (BUILT)    index.html                 # Dev dashboard (BUILT)  /designs                      # Generated images (gitignored) /setup    schema.sql                 # All table definitions .env                          # NEVER commit .env.template                 # Commit this .gitignore                    # Must include: .env, /designs, __pycache__ requirements.txt Procfile                      # worker: python scheduler/main.py
+
+3. Complete Supabase Schema
+All 8 tables. Run setup/schema.sql in Supabase SQL Editor to create all at once.
+3.1 research_briefs
+CREATE TABLE IF NOT EXISTS research_briefs (   id                          uuid PRIMARY KEY DEFAULT gen_random_uuid(),   created_at                  timestamptz NOT NULL DEFAULT now(),   platform                    text NOT NULL DEFAULT 'etsy',   niche                       text NOT NULL,   sub_niche                   text,   top_keywords                text[] NOT NULL DEFAULT '{}',   opportunity_summary         text NOT NULL,   recommended_design_direction text,   recommended_price           numeric(10,2),   avg_competitor_price        numeric(10,2),   competitor_title_examples   text[] DEFAULT '{}',   raw_scrape_data             jsonb,   tokens_used                 integer DEFAULT 0,   cost_usd                    numeric(10,6) DEFAULT 0 ); CREATE INDEX idx_briefs_platform ON research_briefs(platform); CREATE INDEX idx_briefs_created ON research_briefs(created_at DESC);
+
+3.2 designs
+CREATE TABLE IF NOT EXISTS designs (   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),   created_at        timestamptz NOT NULL DEFAULT now(),   brief_id          uuid REFERENCES research_briefs(id) ON DELETE SET NULL,   platform          text NOT NULL DEFAULT 'etsy',   niche             text NOT NULL,   file_path         text,   prompt_used       text,   variation_angle   text,   generation_cost   numeric(10,6) DEFAULT 0,   qa_cost           numeric(10,6) DEFAULT 0,   qa_reason         text,   status            text NOT NULL DEFAULT 'generated'                     CHECK (status IN ('generated','approved','rejected','published')),   attempts          integer DEFAULT 1 ); CREATE INDEX idx_designs_status ON designs(status); CREATE INDEX idx_designs_platform ON designs(platform); CREATE INDEX idx_designs_created ON designs(created_at DESC);
+
+3.3 listings
+CREATE TABLE IF NOT EXISTS listings (   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),   created_at            timestamptz NOT NULL DEFAULT now(),   design_id             uuid REFERENCES designs(id) ON DELETE SET NULL,   platform              text NOT NULL,   external_listing_id   text,   printify_product_id   text,   title                 text NOT NULL,   description           text,   tags                  text[] DEFAULT '{}',   price                 numeric(10,2),   status                text NOT NULL DEFAULT 'draft'                         CHECK (status IN ('draft','active','paused','removed')),   published_at          timestamptz,   impressions           integer DEFAULT 0,   clicks                integer DEFAULT 0,   last_optimized_at     timestamptz,   niche                 text ); CREATE INDEX idx_listings_platform ON listings(platform); CREATE INDEX idx_listings_status ON listings(status);
+
+3.4 cost_log
+CREATE TABLE IF NOT EXISTS cost_log (   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),   timestamp     timestamptz NOT NULL DEFAULT now(),   agent         text NOT NULL,   provider      text NOT NULL CHECK (provider IN ('anthropic','openai','google','sendgrid','other')),   model         text NOT NULL,   tokens_used   integer NOT NULL DEFAULT 0,   cost_usd      numeric(10,6) NOT NULL DEFAULT 0,   notes         text ); CREATE INDEX idx_cost_timestamp ON cost_log(timestamp DESC); CREATE INDEX idx_cost_agent ON cost_log(agent);
+
+3.5 sales
+CREATE TABLE IF NOT EXISTS sales (   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),   order_date        timestamptz NOT NULL DEFAULT now(),   platform          text NOT NULL,   external_order_id text NOT NULL,   listing_id        uuid REFERENCES listings(id) ON DELETE SET NULL,   gross_revenue     numeric(10,2) NOT NULL,   printify_cost     numeric(10,2) NOT NULL DEFAULT 0,   platform_fee_pct  numeric(5,4) NOT NULL DEFAULT 0.065,   platform_fee_flat numeric(10,2) NOT NULL DEFAULT 0.20,   net_profit        numeric(10,2) GENERATED ALWAYS AS                     (gross_revenue - printify_cost                      - (gross_revenue * platform_fee_pct)                      - platform_fee_flat) STORED ); CREATE INDEX idx_sales_platform ON sales(platform); CREATE INDEX idx_sales_date ON sales(order_date DESC);
+
+3.6 expenses
+CREATE TABLE IF NOT EXISTS expenses (   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),   created_at          timestamptz NOT NULL DEFAULT now(),   expense_date        date NOT NULL DEFAULT CURRENT_DATE,   category            text NOT NULL                       CHECK (category IN ('platform_fee','fulfillment','subscription','advertising','other')),   platform            text NOT NULL,   description         text NOT NULL,   amount_usd          numeric(10,2) NOT NULL,   recurring           boolean NOT NULL DEFAULT false,   recurring_interval  text CHECK (recurring_interval IN ('monthly','annual',NULL)) ); INSERT INTO expenses (expense_date, category, platform, description, amount_usd, recurring) VALUES (CURRENT_DATE, 'platform_fee', 'etsy', 'Etsy shop opening fee', 29.00, false);
+
+3.7 memory
+CREATE TABLE IF NOT EXISTS memory (   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),   created_at    timestamptz NOT NULL DEFAULT now(),   last_updated  timestamptz NOT NULL DEFAULT now(),   category      text NOT NULL                 CHECK (category IN ('design_quality','niche_performance','platform_health',                                     'agent_reliability','prompt_performance','scout_findings')),   key           text NOT NULL UNIQUE,   value         jsonb NOT NULL,   confidence    numeric(3,2) DEFAULT 0.5 CHECK (confidence BETWEEN 0 AND 1),   sample_size   integer DEFAULT 1 ); CREATE INDEX idx_memory_category ON memory(category); CREATE INDEX idx_memory_key ON memory(key);
+
+3.8 job_queue
+CREATE TABLE IF NOT EXISTS job_queue (   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),   created_at      timestamptz NOT NULL DEFAULT now(),   job_type        text NOT NULL,   platform        text,   payload         jsonb NOT NULL DEFAULT '{}',   status          text NOT NULL DEFAULT 'pending'                   CHECK (status IN ('pending','processing','done','failed')),   picked_up_at    timestamptz,   completed_at    timestamptz,   error_message   text ); CREATE INDEX idx_jobs_status ON job_queue(status); CREATE INDEX idx_jobs_type ON job_queue(job_type);
+
+3.9 scout_proposals
+CREATE TABLE IF NOT EXISTS scout_proposals (   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),   created_at            timestamptz NOT NULL DEFAULT now(),   opportunity_name      text NOT NULL,   platform              text NOT NULL,   how_it_works          text NOT NULL,   agent_needed          text NOT NULL,   setup_time_hours      numeric(4,1),   monthly_potential_usd numeric(10,2),   risk_description      text,   status                text NOT NULL DEFAULT 'pending'                         CHECK (status IN ('pending','approved','ignored','launched')),   approved_at           timestamptz,   launched_at           timestamptz,   credential_required   boolean DEFAULT false,   credential_instructions text ); CREATE INDEX idx_proposals_status ON scout_proposals(status);
+
+4. Environment Variables & Platform Config
+4.1 Complete .env.template
+# ANTHROPIC ANTHROPIC_API_KEY= ANTHROPIC_MODEL=claude-sonnet-4-5-20251001  # OPENAI OPENAI_API_KEY= OPENAI_IMAGE_MODEL=gpt-image-1  # SUPABASE SUPABASE_URL= SUPABASE_KEY=  # ETSY ETSY_API_KEY= ETSY_API_SECRET= ETSY_ACCESS_TOKEN= ETSY_REFRESH_TOKEN= ETSY_SHOP_ID=  # PRINTIFY PRINTIFY_API_KEY= PRINTIFY_SHOP_ID=  # FIVERR (no API - email based fulfillment) FIVERR_USERNAME= FIVERR_NOTIFICATION_EMAIL=  # SENDGRID SENDGRID_API_KEY= REPORT_EMAIL=  # SYSTEM CONTROLS MONTHLY_SPEND_CAP=100 DRAFT_MODE=true DAILY_DESIGN_TARGET=8 MAX_DESIGN_ATTEMPTS=24 DAILY_LISTING_CAP=8 LISTING_SPACING_MINUTES=15
+
+4.2 platform_config/etsy.json
+{   "platform": "etsy",   "enabled": true,   "research": {     "search_queries": [       "nurse gift mug", "teacher gift mug", "electrician gift mug",       "plumber gift mug", "firefighter gift mug", "engineer gift mug"     ],     "results_per_query": 20,     "sort_by": "most_relevant",     "extract_fields": ["title", "price", "review_count", "tags"]   },   "listing": {     "max_title_chars": 140,     "tag_count": 13,     "classification": "designed_by",     "requires_production_partner": true,     "ai_disclosure_required": true,     "ai_disclosure_text": "This design was created using AI image generation tools based on original prompts. Items are printed and fulfilled by our production partner, Printify.",     "default_price": 22.99,     "default_quantity": 999   },   "products": {     "mug_11oz": {       "printify_blueprint_id": 36,       "printify_print_provider_id": 99,       "image_size_px": 1200,       "image_dpi": 150     }   },   "compliance": {     "daily_listing_cap": 8,     "listing_spacing_minutes": 15,     "draft_mode_days": 14   },   "publisher_module": "publishers.etsy_printify" }
+
+4.3 platform_config/fiverr.json
+{   "platform": "fiverr",   "enabled": true,   "fulfillment_model": "email_notification",   "service": "youtube_thumbnails",   "research": {     "search_queries": [       "youtube thumbnail design", "youtube thumbnail gaming",       "youtube thumbnail fitness", "youtube thumbnail finance"     ],     "results_per_query": 20,     "extract_fields": ["title", "seller_level", "review_count", "starting_price", "delivery_days"]   },   "gig": {     "title": "I will design eye-catching YouTube thumbnails that boost clicks",     "packages": {       "basic":    { "price": 10, "delivery_days": 1, "quantity": 1 },       "standard": { "price": 25, "delivery_days": 1, "quantity": 3 },       "premium":  { "price": 50, "delivery_days": 1, "quantity": 5 }     },     "tags": ["youtube thumbnail", "thumbnail design", "youtube", "channel art"]   },   "fulfillment": {     "delivery_format": "PNG",     "delivery_size_px": "1280x720",     "turnaround_hours": 23   },   "publisher_module": "publishers.fiverr" }
+
+5. Core Module Specifications
+5.1 core/supabase_client.py — All Functions
+from supabase import create_client import os supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))  # research_briefs def save_brief(platform, niche, sub_niche, top_keywords, opportunity_summary,                recommended_design_direction, recommended_price, avg_competitor_price,                competitor_title_examples, raw_scrape_data, tokens_used, cost_usd) -> dict def get_latest_brief(platform='etsy') -> dict | None def get_brief_by_id(brief_id: str) -> dict | None  # designs def save_design(brief_id, platform, niche, file_path, prompt_used, variation_angle,                 generation_cost, qa_cost, qa_reason, status, attempts) -> dict def get_designs_by_status(status: str, platform='etsy') -> list[dict] def update_design_status(design_id: str, status: str, qa_reason: str = None) -> dict  # listings def save_listing(design_id, platform, external_listing_id, printify_product_id,                  title, description, tags, price, status, niche) -> dict def update_listing_status(listing_id: str, status: str) -> dict def update_listing_stats(listing_id: str, impressions: int, clicks: int) -> dict def get_listings_by_status(status: str, platform='etsy') -> list[dict] def get_listings_needing_optimization(days_live: int = 14) -> list[dict]  # cost_log def log_cost(agent, provider, model, tokens_used, cost_usd, notes=None) -> dict def get_month_spend(year: int, month: int) -> float def get_spend_by_agent(year: int, month: int) -> dict  # sales def save_sale(platform, external_order_id, listing_id, gross_revenue,               printify_cost, platform_fee_pct, platform_fee_flat) -> dict def get_sales_in_range(start: str, end: str, platform=None) -> list[dict]  # expenses def save_expense(expense_date, category, platform, description,                  amount_usd, recurring=False, recurring_interval=None) -> dict def get_expenses_in_range(start: str, end: str) -> list[dict]  # memory def upsert_memory(category, key, value, confidence=0.5, sample_size=1) -> dict def get_memory(key: str) -> dict | None def get_memory_by_category(category: str) -> list[dict]  # job_queue def enqueue_job(job_type, platform=None, payload={}) -> dict def dequeue_job(job_type: str) -> dict | None def complete_job(job_id: str) -> dict def fail_job(job_id: str, error_message: str) -> dict  # scout_proposals def save_proposal(opportunity_name, platform, how_it_works, agent_needed,                   setup_time_hours, monthly_potential_usd, risk_description,                   credential_required=False, credential_instructions=None) -> dict def get_pending_proposals() -> list[dict] def approve_proposal(proposal_id: str) -> dict def ignore_proposal(proposal_id: str) -> dict
+
+5.2 core/finance.py — All Functions
+def get_weekly_pnl(week_start: str, week_end: str) -> dict # Returns: {gross_revenue, api_costs, fulfillment_costs, platform_fees, #           expense_costs, total_costs, net_profit, net_margin_pct, order_count}  def get_monthly_pnl(year: int, month: int) -> dict  def get_all_time_pnl() -> dict # Returns: {gross_revenue, total_costs, net_profit, setup_costs_recovered: bool, #           remaining_to_recover: float, days_since_launch}  def get_cost_breakdown(start: str, end: str) -> dict # Returns: {api_costs_by_agent: {}, fulfillment_total, platform_fees_total, #           other_expenses, grand_total}  def log_fulfillment_cost(order_id: str, listing_id: str, amount: float) -> None def log_platform_fee(platform: str, description: str, amount: float) -> None  def format_weekly_report_section(pnl: dict) -> str # Returns formatted plain-text block for weekly email
+
+5.3 core/memory_client.py — All Functions
+def remember(category: str, key: str, value: dict,              confidence: float = 0.5, sample_size: int = 1) -> None  def recall(key: str) -> dict | None  def recall_category(category: str) -> list[dict]  def recall_best_niches(platform: str, top_n: int = 5) -> list[str] # Returns top N niches by avg_net_per_listing from memory  def recall_best_design_angles(platform: str) -> list[str] # Returns variation angles sorted by QA pass rate from memory  def recall_prompt_pass_rate(variation_angle: str) -> float # Returns rolling 7-day QA pass rate for this angle, default 0.5 if no data
+
+6. Agent Specifications
+6.1 agents/research_agent.py
+Entry point
+def run(platform: str = 'etsy') -> list[dict] # Returns list of saved brief dicts # Checks spend cap first, exits if hit # Loads platform_config/{platform}.json # Runs one scrape+brief cycle per search query in config # Enqueues 'research_complete' job per brief saved # __main__: python agents/research_agent.py [--platform etsy|fiverr]
+
+Claude brief generation prompt (exact)
+RESEARCH_PROMPT = """You are a product research analyst for a print-on-demand store.  Platform: {platform} Search query: {query} Top {count} listings scraped today: {listings_formatted}  Analyze this data and identify the single best design opportunity.  Return ONLY valid JSON, no markdown, no explanation: {{   "sub_niche": "specific sub-niche e.g. ICU nurse gifts",   "opportunity_summary": "2-3 sentences on why this is the best opportunity right now",   "top_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],   "recommended_design_direction": "specific design concept",   "recommended_price": 22.99,   "avg_competitor_price": 0.00,   "competitor_title_examples": ["title1", "title2", "title3"] }}"""  # On call: log cost immediately regardless of parse success # Strip markdown fences before JSON parse # On parse failure: log error, skip this query, continue loop
+
+Fiverr scrape targets
+# scrape_fiverr(query) uses same Playwright pattern as scrape_etsy # URL: https://www.fiverr.com/search/gigs?query={query}&sort_by=best_selling # Extract per gig: title, seller_level, review_count, starting_price, delivery_days # Same error handling, same cost logging, same Supabase save
+
+6.2 agents/design_agent.py
+Entry point
+def run(platform: str = 'etsy', target: int = 8, max_attempts: int = 24) -> dict # Returns: {approved: int, rejected: int, attempts: int, cost: float} # Loop: while approved < target and attempts < max_attempts # Each iteration: generate -> save -> inline QA -> log -> save to DB # __main__: default = target 1, max 3 (single test). --full = target 8, max 24
+
+Image generation prompt template (exact)
+IMAGE_PROMPT_TEMPLATE = """You are a professional graphic designer creating bestselling gift mug designs for Etsy. Your designs are clever, funny, and feel like something a mom would stop scrolling to buy for her husband or a friend would buy as a birthday gift.  Design brief: {occupation} gift Concept: {design_direction} Variation angle: {variation_angle} {rejection_feedback}  Requirements: - Feel HUMAN made, not AI generated. Think screen print aesthetic. - Include one SHORT punchy funny phrase. Energy examples: 'Powered by Coffee and Bad   Decisions', 'Electricians Do It With More Amps'. NOT generic. NOT '{occupation} Gift'. - Illustration supports the joke, not just a random tool. - Style: bold, clean, slightly vintage or hand-drawn. Think Redbubble bestsellers.   High contrast. 2-3 colors max. - White background, centered, print-ready. - Text PERFECTLY spelled and readable.  OUTPUT REQUIREMENTS - HARD RULES: - Flat artwork ONLY. No mugs, cups, product mockups, 3D objects, hands holding anything. - Design as a sticker or iron-on transfer. Printify places it on the product. - No extra limbs, no distorted faces, no artifacts. - No brand names, logos, or copyrighted characters. - No garbled, misspelled, or distorted text."""  VARIATION_ANGLES = [     "humorous quote with minimal illustration",     "vintage badge style with occupation imagery",     "bold typography only no illustration",     "self-deprecating humor about the job",     "pride in the craft celebrating the occupation",     "relatable daily struggle only this occupation understands",     "gifted by spouse or family energy", ]  REJECTION_FEEDBACK_TEMPLATE = "Previous attempt rejected for: {reason}. Avoid this."
+
+QA prompt (exact)
+QA_PROMPT = """You are reviewing designs for a FUNNY GIFT MUG store on Etsy. The target buyer spends $20-25 on a gift for a coworker, spouse, or parent. Cartoonish, bold, slightly irreverent designs are EXACTLY what sells here.  HARD FAIL on ANY of these: 1. PRODUCT IN IMAGE: contains a mug, cup, product mockup, or 3D rendered object 2. ANATOMICAL ERRORS: extra limbs, wrong number of fingers, distorted face 3. TEXT DEFECTS: garbled, misspelled, or unreadable text anywhere 4. BROKEN OUTPUT: blurry, artifact-heavy, looks corrupted or unfinished 5. OFF NICHE: completely irrelevant to the occupation it was designed for 6. OFFENSIVE: actual profanity, hate imagery, content that would get the shop banned  Buyer test: would a mom buy this as a gift for her electrician husband on Etsy? Cartoonish is fine. Generic is fine. Only fail if BROKEN or violates a hard rule. When in doubt, PASS it.  Respond ONLY with valid JSON, no markdown: {"pass": true/false, "reason": "one sentence"}"""  # Call: openai client, model=gpt-4o, image as base64 PNG # max_tokens: 200 # Default to pass=False on any parse error
+
+6.3 agents/publisher_agent.py
+Entry point
+def run(platform: str = 'etsy') -> dict # Returns: {published: int, failed: int, cost: float} # Checks spend cap first # Gets all approved designs for platform # For each: generate copy -> publish to platform -> update DB -> wait spacing # Calls run_cleanup() at end # __main__: --dry-run prints listing copy only, no API calls
+
+Listing copy prompt (exact)
+LISTING_COPY_PROMPT = """Write an Etsy product listing for a {occupation} gift mug.  Research context: - Sub-niche: {sub_niche} - Top keywords: {top_keywords} - Competitor title examples: {competitor_titles} - Target price: {price}  Return ONLY valid JSON, no markdown: {{   "title": "max 140 chars, include top keywords naturally, NOT just {occupation} Gift",   "description": "3-4 sentences. Who it is for, what makes it special, gift occasions.                   Friendly conversational tone. End with this exact text:                   This design was created using AI image generation tools based on                   original prompts. Items are printed and fulfilled by our production                   partner, Printify.",   "tags": ["exactly 13 tags", "mix of specific and broad"],   "price": {price} }}"""  # Validate after parse: title <= 140 chars, len(tags) == 13, disclosure present
+
+6.4 publishers/etsy_printify.py
+All functions
+def publish(design: dict, listing_copy: dict, config: dict) -> dict | None # Calls upload_to_printify() then create_etsy_listing() # Returns listing record dict or None on failure  def upload_to_printify(design: dict, config: dict) -> dict | None # 1. Read image file at design['file_path'], base64 encode # 2. POST https://api.printify.com/v1/uploads/images.json #    Headers: Authorization: Bearer {PRINTIFY_API_KEY} #    Body: {file_name: uuid.png, contents: base64_string} # 3. Get image_id from response # 4. POST https://api.printify.com/v1/shops/{PRINTIFY_SHOP_ID}/products.json #    Body: {title, blueprint_id: 36, print_provider_id: 99, #            variants: [{id: variant_id, price: price_cents, is_enabled: true}], #            print_areas: [{variant_ids: [...], placeholders: [{position: front, #              images: [{id: image_id, x: 0.5, y: 0.5, scale: 1, angle: 0}]}]}]} # Returns: {printify_product_id, variant_ids}  def create_etsy_listing(listing_copy: dict, printify_result: dict,                         config: dict, draft: bool) -> dict | None # POST https://openapi.etsy.com/v3/application/shops/{ETSY_SHOP_ID}/listings # Headers: Authorization: Bearer {ETSY_ACCESS_TOKEN}, x-api-key: {ETSY_API_KEY} # Body: {quantity: 999, title, description, price: float, who_made: someone_else, #         when_made: made_to_order, taxonomy_id: 2078, #         state: draft if draft else active, #         shipping_profile_id: pre-created in shop (manual step)} # Returns: {external_listing_id}  def refresh_etsy_token() -> str # POST https://api.etsy.com/v3/public/oauth/token # grant_type: refresh_token, refresh_token: ETSY_REFRESH_TOKEN # Updates ETSY_ACCESS_TOKEN in .env, returns new token # Called automatically on any 401 from Etsy API
+
+6.5 publishers/fiverr.py
+Fiverr has no public API. Fulfillment uses email-based flow.
+def check_fiverr_orders() -> list[dict] # Connect to IMAP using REPORT_EMAIL credentials # Search for unread emails from noreply@fiverr.com with subject containing 'New Order' # Parse: order_id, buyer_username, package_tier, requirements text # Mark as read after parsing # Returns list of order dicts  def fulfill_order(order: dict) -> bool # 1. Extract video topic from order requirements # 2. Build thumbnail prompt: build_thumbnail_prompt(topic, channel_niche) # 3. Generate 1280x720 image via OpenAI API (gpt-image-1) # 4. QA the thumbnail (same QA prompt, adapted for thumbnail not mug) # 5. Save PNG to /designs/fiverr/{date}/{order_id}.png # 6. Email PNG as attachment to REPORT_EMAIL #    Subject: FIVERR DELIVERY READY: {order_id} #    Body: Order details + filepath. Owner delivers via Fiverr interface. # Returns True on success  def build_thumbnail_prompt(video_topic: str, channel_niche: str) -> str # Returns image gen prompt for 1280x720 YouTube thumbnail # Style: high contrast, bold readable text, eye-catching composition # Must include: topic text, relevant visual, professional click-worthy design # OUTPUT REQUIREMENTS: flat artwork, no background, 16:9 ratio composition
+
+6.6 agents/performance_agent.py
+Entry point — runs Tue and Thu 11AM
+def run(platform: str = 'etsy') -> dict # Returns: {optimized: int, flagged: int, unchanged: int}  # For each listing live > 14 days: # 1. Fetch stats from Etsy API: #    GET https://openapi.etsy.com/v3/application/shops/{shop_id}/listings/{listing_id}/stats # 2. Update impressions and clicks in Supabase # 3. Evaluate: #    impressions < 50 after 14 days -> rewrite title and tags via Claude #    impressions >= 50, clicks < 5% CTR -> enqueue 'optimize_listing' flag for owner #    impressions < 10 after 30 days -> set status to paused # 4. Write niche performance to memory via memory_client
+
+6.7 agents/reporting_agent.py
+Entry point — runs Sunday 9AM
+def run() -> None # Calls finance.get_weekly_pnl() and finance.get_all_time_pnl() # Builds email body using exact format below # Sends via emailer.send_report()  # Exact email subject: Weekly Report - {date_range} | Net: $[net_profit] # Exact email body sections: # REVENUE: gross sales, order count, active listings # COSTS: API costs, fulfillment, Etsy fees, other, total # NET PROFIT and NET MARGIN # ALL-TIME: total revenue, total costs, net profit, recovered status # TOP PERFORMERS: top 3 listings by revenue this week # PIPELINE ACTIVITY: designs generated/approved, listings published, briefs created # ALERTS: list from anomaly_detector or 'No alerts this week.' # SCOUT PROPOSALS: count pending in dashboard
+
+7. Orchestrator Agent — Full Specification
+7.1 System prompt (injected fresh on every call)
+ORCHESTRATOR_SYSTEM = """You are the orchestrator of an autonomous income engine. You manage AI agents running income streams: {active_streams_list}.  Personality: direct, competent, concise. Give best answer immediately. No clarifying questions unless genuinely necessary. No padding. Act like a trusted business partner who knows the numbers.  Current system state: {system_state_json}  What you can do without approval: - Answer questions using injected state data - Task workers: trigger research, design runs, optimization - Diagnose problems and propose fixes - Adjust config: niches, spend cap, draft mode  What requires owner approval: - Launching a new income stream type never run before - Spending above monthly cap - Deleting live listings or products  What only the owner can do (tell them exactly what is needed): - Signing up for a new platform account - Providing a payment method to a new platform - Providing a new API key after signup  When credential needed, respond exactly: 'To launch [stream] I need [credential name]. Here is exactly how to get it: 1. [exact step] 2. [exact step] Paste the key here and I will continue setup automatically.'  End action responses with: 'Done. I will report results in the weekly summary unless something needs your attention sooner.'"""  def build_system_state() -> dict:     # Called fresh before every orchestrator API call     return {         'timestamp': datetime.now().isoformat(),         'active_streams': get_active_stream_names(),         'weekly_revenue': get_weekly_pnl(...)['gross_revenue'],         'weekly_net': get_weekly_pnl(...)['net_profit'],         'active_listing_count': count_listings_by_status('active'),         'monthly_spend': get_month_spend(year, month),         'monthly_cap': float(os.getenv('MONTHLY_SPEND_CAP', 100)),         'pending_proposals': len(get_pending_proposals()),         'recent_errors': get_recent_agent_errors(hours=48),         'top_listing_this_week': get_top_listing_this_week(),         'designs_approved_today': count_designs_approved_today(),         'draft_mode': os.getenv('DRAFT_MODE', 'true')     }
+
+7.2 Server endpoint
+# server.py @app.route('/orchestrator', methods=['POST']) def orchestrator_chat():     message = request.json.get('message', '')     history = request.json.get('history', [])   # full conversation history in session      system_state = build_system_state()     system_prompt = ORCHESTRATOR_SYSTEM.format(         active_streams_list=get_active_stream_names(),         system_state_json=json.dumps(system_state, indent=2)     )     messages = history + [{"role": "user", "content": message}]      response = anthropic_client.messages.create(         model=os.getenv('ANTHROPIC_MODEL'),         max_tokens=1000,         system=system_prompt,         messages=messages     )     reply = response.content[0].text     log_cost('orchestrator', 'anthropic', os.getenv('ANTHROPIC_MODEL'),              response.usage.input_tokens + response.usage.output_tokens,              calc_anthropic_cost(response.usage))      return jsonify({         'reply': reply,         'history': messages + [{"role": "assistant", "content": reply}]     })
+
+7.3 Credential flow (exact steps)
+Owner taps Approve on Scout proposal in dashboard.
+Dashboard POSTs to /orchestrator with message: 'Scout proposal approved: {opportunity_name}'
+Orchestrator checks scout_proposals table for credential_required flag.
+If true: posts credential request message with exact URL and steps.
+Owner completes signup, pastes key into chat input.
+Orchestrator validates key format (basic string check), POSTs to /set-env endpoint.
+/set-env writes key to .env file (only allowed keys, localhost only).
+Orchestrator creates platform_config/{platform}.json from proposal data.
+Orchestrator calls research_agent.run(new_platform) to start stream.
+Orchestrator posts confirmation. Updates proposal status to 'launched'.
+8. Scout Agent — Full Specification
+8.1 Entry point — Sunday 7AM
+def run() -> list[dict] # Returns list of saved proposal dicts # Scrapes 4-5 sources for opportunities # Calls Claude to evaluate and score each # Saves top 3 qualifying proposals to scout_proposals table # Enqueues 'scout_proposal' job for orchestrator to notify owner
+
+8.2 Research sources
+Etsy trending categories: https://www.etsy.com/market/trending
+Fiverr category browse pages: https://www.fiverr.com/categories
+Google Trends RSS: https://trends.google.com/trending/rss?geo=US
+Reddit: scrape top 10 posts from r/beermoney and r/passive_income this week
+8.3 Evaluation prompt (exact)
+SCOUT_PROMPT = """You are evaluating new income stream opportunities for an autonomous agent system currently running: {active_streams}.  The system can fulfill: AI-generated graphic designs, text content, thumbnails, automated marketplace publishing.  Research data collected this week: {research_data}  Previously rejected opportunities (do not re-propose): {rejected_history}  Identify up to 3 opportunities meeting ALL criteria: 1. Fulfillable by existing agent output or a simple new publisher module 2. Zero inventory or fulfillment risk 3. Free to launch (under $50 setup) 4. Realistic $200+/month at steady state within 60 days 5. First order or revenue possible within 30 days  For each return JSON: {{   "opportunity_name": "",   "platform": "",   "how_it_works": "2-3 sentences",   "agent_needed": "existing_with_config | new_publisher_module | new_agent",   "setup_time_hours": 0,   "monthly_potential_usd": 0,   "risk_description": "one sentence",   "credential_required": true/false,   "credential_instructions": "exact signup steps or null" }}  Return JSON array. Empty array if nothing qualifies. Do not re-propose anything already running or in the rejected list."""
+
+9. System Improvement Agents
+9.1 agents/memory_agent.py — runs daily 10PM
+def run() -> None # 1. QA pass rate per variation angle (last 7 days, min 3 samples) #    key: 'pass_rate_{angle}', category: 'design_quality' # 2. Avg net profit per listing per niche (all time) #    key: '{platform}_{niche}_avg_net_per_listing', category: 'niche_performance' # 3. Agent error rate per agent (last 7 days) #    key: '{agent_name}_error_rate', category: 'agent_reliability' # All written via memory_client.remember()
+
+9.2 agents/prompt_evolution_agent.py — runs Sunday 7:30AM
+def run() -> dict # Returns: {angles_updated: int, angles_unchanged: int} # For each variation angle: #   Get pass rate from memory_client.recall_prompt_pass_rate(angle) #   If pass_rate < 0.50: #     Ask Claude to generate 3 alternative angle descriptions #     Test each with 3 design+QA cycles #     If winner beats current by > 15 percentage points: update VARIATION_ANGLES #     Log update to memory and include in Sunday report #   Else: skip
+
+9.3 agents/anomaly_detector.py — runs daily 11PM
+Check | Threshold | Action
+Weekly sales per listing | Drop > 50% vs prior week on listing with > 5 prior sales | Email alert + enqueue optimize_listing
+QA pass rate | < 30% for 3 consecutive runs | Email alert + enqueue prompt_evolution job
+API cost per run | Spike > 3x rolling 7-day average for any agent | Email alert + pause that agent
+Etsy impressions | Drop > 40% across all listings in one week | Email alert — likely algorithm change
+Monthly spend rate | > 80% of cap with > 7 days remaining | Email warning, reduce DAILY_DESIGN_TARGET by 50%
+Agent last run | Any scheduled agent not run in > 26 hours | Email alert + log to self_healing queue
+Scout proposal age | Approved proposal not launched within 7 days | Reminder email to owner
+
+9.4 agents/self_healing_agent.py — triggered by anomaly_detector
+Failure | Auto-Fix | Escalate If
+Etsy scraper returns 0 results | Rebuild CSS selectors using GPT-4o vision on page screenshot | Fails after 3 attempts
+API auth expired (401) | Trigger refresh_etsy_token() and retry | Re-auth requires manual browser login
+Supabase timeout | Retry with exponential backoff up to 10 min | Persists beyond 10 min
+Image gen all black output | Detect via avg pixel brightness < 10, adjust prompt constraints, retry | Persists across 5 attempts
+Railway process crash | Railway auto-restarts. Log crash reason to memory. | Crash loop: 3 crashes in 1 hour
+
+10. Scheduler — Complete Implementation
+# scheduler/main.py  from apscheduler.schedulers.blocking import BlockingScheduler from apscheduler.events import EVENT_JOB_ERROR import logging, os  from agents.research_agent import run as run_research from agents.design_agent import run as run_design from agents.publisher_agent import run as run_publisher from agents.performance_agent import run as run_performance from agents.reporting_agent import run as run_reporting from agents.scout_agent import run as run_scout from agents.memory_agent import run as run_memory from agents.prompt_evolution_agent import run as run_prompt_evolution from agents.anomaly_detector import run as run_anomaly from publishers.fiverr import check_fiverr_orders, fulfill_order from core.spend_monitor import check_cap from core.emailer import send_alert  logging.basicConfig(level=logging.INFO) # America/Chicago = Lubbock TX timezone scheduler = BlockingScheduler(timezone='America/Chicago')  def guarded(fn, name, *args):     def wrapper():         if not check_cap():             logging.warning(f"[{name}] skipped - spend cap hit")             return         try:             result = fn(*args) if args else fn()             logging.info(f"[{name}] complete: {result}")         except Exception as e:             send_alert(f"Agent failed: {name}", str(e))             logging.error(f"[{name}] ERROR: {e}")     return wrapper  def fiverr_check():     orders = check_fiverr_orders()     for order in orders:         fulfill_order(order)  scheduler.add_listener(lambda e: send_alert("Scheduler error", str(e.exception)), EVENT_JOB_ERROR)  # Daily pipeline scheduler.add_job(guarded(run_research,'research_etsy','etsy'),  'cron', hour=6,  minute=0) scheduler.add_job(guarded(run_research,'research_fiverr','fiverr'),'cron',hour=6, minute=30) scheduler.add_job(guarded(run_design,  'design_agent',  'etsy'),  'cron', hour=8,  minute=0) scheduler.add_job(guarded(run_publisher,'publisher_agent','etsy'), 'cron', hour=10, minute=0) scheduler.add_job(guarded(fiverr_check,'fiverr_check'),           'cron', hour='*/4', minute=0) scheduler.add_job(guarded(run_performance,'performance','etsy'),  'cron', day_of_week='tue,thu', hour=11) scheduler.add_job(guarded(run_memory,  'memory_agent'),           'cron', hour=22, minute=0) scheduler.add_job(guarded(run_anomaly, 'anomaly_detector'),       'cron', hour=23, minute=0)  # Weekly (Sunday) scheduler.add_job(guarded(run_scout,          'scout_agent'),     'cron', day_of_week='sun', hour=7, minute=0) scheduler.add_job(guarded(run_prompt_evolution,'prompt_evo'),     'cron', day_of_week='sun', hour=7, minute=30) scheduler.add_job(guarded(run_reporting,      'reporting_agent'), 'cron', day_of_week='sun', hour=9, minute=0)  if __name__ == '__main__':     logging.info("[scheduler] Autonomous Income Engine starting")     scheduler.start()
+
+11. Dashboard Specification
+11.1 Dev dashboard (built — dashboard/server.py + index.html)
+Functional for development. Pipeline controls, gallery, stats, briefs. Keep as-is until production dashboard is built.
+11.2 Production dashboard (build after revenue — React on Vercel)
+Section | Contents | Data Source
+Income Streams | Card per platform. Revenue this week, active listings, status badge. Pause and Configure buttons. | Supabase: sales, listings
+Agent Activity | Today's agent runs. Time, duration, result, cost. Expandable error log. | Supabase: cost_log
+Scout Proposals | Pending proposal cards. Full proposal fields. Approve and Ignore buttons. | Supabase: scout_proposals
+Finance Panel | Weekly P&L, monthly spend vs cap, all-time net, cost breakdown. | core/finance.py via /stats endpoint
+Orchestrator Chat | Full-width chat at bottom. Text input + Send. Session history. | POST /orchestrator endpoint
+
+12. Railway Deployment
+Confirm .env is in .gitignore. Push code to private GitHub repo.
+railway.app -> New Project -> Deploy from GitHub -> select repo.
+Set start command: python scheduler/main.py
+Add all environment variables from Section 4.1 in Railway -> Variables.
+Deploy. Confirm log line: [scheduler] Autonomous Income Engine starting
+Verify first 6AM run completes without errors.
+Free tier: 500 compute hours/month. Always-on scheduler uses ~720hrs/mo. Upgrade to Hobby plan ($5/mo) when profitable. Alternative: Oracle Cloud Free Tier (truly $0, more setup).
+
+13. Build Order — Day by Day
+When | Task | Done When
+Before Day 1 | Pay $29 Etsy fee, finish shop setup, get Etsy OAuth token, connect Printify to shop | One manually created draft listing exists in Etsy
+Day 1 AM | Create platform_config/etsy.json and platform_config/fiverr.json per Section 4 | Both files validate as JSON
+Day 1 PM | Build publishers/etsy_printify.py per Section 6.4 | --dry-run flag prints valid listing copy with AI disclosure
+Day 2 AM | Build agents/publisher_agent.py per Section 6.3 | --dry-run works end to end
+Day 2 PM | Run publisher live. First real Etsy listing published. | Listing visible in Etsy seller dashboard
+Day 3 AM | Add Fiverr research mode to research_agent.py. Run it. | Fiverr brief saved to Supabase
+Day 3 PM | Build publishers/fiverr.py per Section 6.5. Test order flow. | Test order generates thumbnail and sends delivery email
+Day 4 AM | Build agents/reporting_agent.py. Test email delivery. | Report email received in inbox
+Day 4 PM | Build scheduler/main.py. Deploy to Railway. | Next 6AM run completes on Railway without errors
+Week 2 | Build core/finance.py, add expenses table, add finance panel to dashboard | Weekly report shows full P&L including $29 Etsy fee
+Week 2-3 | Build agents/performance_agent.py | Runs on schedule, rewrites underperforming listing SEO
+Week 3-4 | Build memory_agent.py and anomaly_detector.py | Memory table populating. First anomaly alert received.
+Month 2 | Build orchestrator_agent.py and dashboard chat panel | Can ask orchestrator questions in dashboard
+Month 2 | Build scout_agent.py | First Scout proposal appears in dashboard
+Month 3+ | Build prompt_evolution_agent.py and self_healing_agent.py | System improving and repairing itself autonomously
+
+14. Rules for Not Failing
+Rule | Why
+Build in strict day order. | Every phase depends on the previous. Skipping creates untraceable failures.
+Revenue before complexity. | Publisher before orchestrator. Prove the loop works before adding intelligence.
+One new stream at a time. | Parallel launches make it impossible to know what is working.
+Draft mode 2 weeks on every new platform. | New accounts with no history get flagged faster. Protects account health.
+$100 cap configured before anything runs. | One bug without a cap can run thousands of API calls overnight.
+60 days before judging any stream. | Month 1 is ramp-up. Month 2 is real signal. Week 3 is too early to decide anything.
+Scout proposals need one approval. | System never spends on new streams the owner has not seen.
+Orchestrator cannot exceed cap without approval. | Self-expansion is bounded. The system grows within owner-set limits.
+Log every expense from day one. | All-time P&L only means something if every cost including the $29 fee is captured.
+Never commit .env to GitHub. | One push exposes all API keys. .env must be in .gitignore before first commit.
+Owner only does credentials and approvals. | If the system is asking for anything else it is a design flaw to fix, not a task to do.
+
+15. Summary
+Item | Detail
+What this is | Autonomous multi-stream income engine. Agents run income streams. Owner approves strategy only.
+Build status | Core pipeline built. Publisher is next.
+Time to first revenue | 3-4 days from now
+Monthly operating cost | $46-86/mo hard capped at $100
+Break-even | 4-7 Etsy mug sales/month
+Max downside | ~$200 over 60 days before pivot decision
+Owner time | ~15 min/week — dashboard review and report
+Owner interaction | Approve proposals. Provide credentials when asked. Nothing else.
+Self-expansion | Scout finds new streams weekly. One approval to launch.
+Self-improvement | Memory + Prompt Evolution compound quality over time.
+Self-healing | Detects and fixes its own failures. Escalates only what it cannot resolve.
+Finance tracking | Every cost tracked. Full P&L always available including one-time fees.
+End state | Multiple streams running autonomously, compounding monthly, funding primary business ventures.
+
+This document is the single source of truth. Every agent, every function, every table, every prompt is fully specified. Build exactly what is written. Cursor should have zero ambiguity.
+
+Autonomous Income Engine — Complete Build Specification v5.0 — May 2026

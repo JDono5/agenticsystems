@@ -1,0 +1,49 @@
+# ─── Secrets — NEVER commit these ────────────────────────────────────────────
+.env
+
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ─── Virtual environments ─────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ─── Generated design files (large binaries, not source) ──────────────────────
+designs/
+
+# ─── Logs & temp files ────────────────────────────────────────────────────────
+*.log
+prompt_evolution_log.txt
+tmp/
+temp/
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─── Playwright ───────────────────────────────────────────────────────────────
+playwright-report/
+test-results/
+
+# ─── Pytest ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage

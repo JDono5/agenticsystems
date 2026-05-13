@@ -1,0 +1,188 @@
+Primary channel: Etsy print-on-demand via Printify. Starting niche: funny occupation gifts. Starting product: mugs. Everything else is expansion built on top of this foundation once it's making money.
+
+Decision | What We're Doing | Why
+Starting niche | Funny occupation gifts | Low copyright risk, tons of sub-niches, strong gift-buying intent, high search volume
+Starting product | Mugs only (Week 1) | Simplest Printify integration, highest margin in niche, easiest design format
+Report delivery | Telegram bot | 5 min setup, arrives on phone, no inbox noise
+Draft mode | On for first 2 weeks, then auto-publish | Protects new shop from early flags while you confirm output quality
+Hosting | Railway (free tier) | No credit card required, deploy from GitHub, always-on, free until profitable
+Spend cap | $100/month hard limit | Agents halt automatically if cap is hit before sales cover costs
+
+Day 1 success = one draft listing visible in Etsy. Don't touch the niche research or agent architecture until this is confirmed.
+
+After Day 4: check Telegram weekly report on Sundays. Review and approve/reject drafts twice a week for the first 2 weeks. After 2 weeks flip to auto-publish if output quality is consistent.
+
+Component | Technology | Cost
+Language | Python 3.11+ | Free
+Agent AI calls | Anthropic Claude Sonnet API | ~$25-40/mo
+Image generation | OpenAI GPT-4o Image API | ~$12-25/mo
+Database | Supabase | Free tier
+Etsy scraping | Playwright (headless Chromium) | Free
+Scheduler | APScheduler (Python) | Free
+Hosting | Railway | Free tier
+Notifications | Telegram Bot API | Free
+Development | Cursor + Claude Sonnet | Existing
+
+/agents    research_agent.py       # Etsy scraper + brief generator    design_agent.py         # GPT-4o image generation    publisher_agent.py      # Printify + Etsy listing creation    reporting_agent.py      # Weekly P&L via Telegram  /publishers    etsy_printify.py        # Etsy + Printify specific logic (Phase 1)    amazon.py               # Future    redbubble.py            # Future  /core    supabase_client.py      # Shared DB read/write helpers    cost_logger.py          # Logs every API call cost    spend_monitor.py        # Checks cap before agents run    error_handler.py        # Retry logic + Telegram alerts  /scheduler    main.py                 # APScheduler entry point, all cron jobs  .env                       # All API keys (never committed to GitHub) Procfile                   # Railway: worker: python scheduler/main.py requirements.txt           # All dependencies
+
+Time | Agent | Action
+6:00 AM | Research Agent | Scrapes Etsy occupation gift bestsellers, stores brief in Supabase
+8:00 AM | Design Agent | Reads brief, generates up to 8 designs, logs all costs
+10:00 AM | Publisher Agent | Creates Printify products, writes listing copy, pushes to Etsy as draft or live
+Sunday 9:00 AM | Reporting Agent | Calculates weekly P&L, sends Telegram summary
+Before every run | Spend Monitor | Checks monthly API spend vs $100 cap. Halts all agents if exceeded.
+
+Column | Type | Description
+id | uuid (PK) | Auto-generated
+created_at | timestamp | When research ran
+niche | text | e.g. 'funny occupation gifts'
+sub_niche | text | e.g. 'nurse gifts'
+top_keywords | text[] | Array of top performing keywords found
+opportunity_summary | text | Claude-generated brief: what to make and why
+top_competitor_titles | text[] | Sample titles from bestselling listings
+avg_price_point | numeric | Average price of top listings in this niche
+
+Column | Type | Description
+id | uuid (PK) | Auto-generated
+created_at | timestamp | When design was generated
+brief_id | uuid (FK) | Links to research_briefs
+file_path | text | Local path to saved image file
+prompt_used | text | Exact prompt sent to GPT-4o
+generation_cost | numeric | Cost of this image gen call in USD
+status | text | 'generated' | 'approved' | 'rejected' | 'published'
+
+Column | Type | Description
+id | uuid (PK) | Auto-generated
+created_at | timestamp | When listing was created
+design_id | uuid (FK) | Links to designs
+etsy_listing_id | text | Etsy's listing ID
+printify_product_id | text | Printify's product ID
+title | text | Final listing title
+tags | text[] | All 13 Etsy tags
+status | text | 'draft' | 'active' | 'paused' | 'removed'
+published_at | timestamp | When pushed live
+
+Column | Type | Description
+id | uuid (PK) | Auto-generated
+timestamp | timestamp | When the API call was made
+agent | text | Which agent made the call
+provider | text | 'anthropic' | 'openai'
+model | text | e.g. 'claude-sonnet-4-5' or 'gpt-4o'
+tokens_used | integer | Total tokens (input + output)
+cost_usd | numeric | Cost of this call in USD
+
+Column | Type | Description
+id | uuid (PK) | Auto-generated
+order_date | timestamp | When Etsy order was placed
+etsy_order_id | text | Etsy's order ID
+listing_id | uuid (FK) | Links to listings
+gross_revenue | numeric | What customer paid
+printify_cost | numeric | What Printify charged for fulfillment
+etsy_fee | numeric | 6.5% transaction fee + $0.20 listing fee
+net_profit | numeric | gross_revenue - printify_cost - etsy_fee
+
+You are a product research analyst for an Etsy print-on-demand store.  Here is data from the top 20 listings for [sub_niche] on Etsy today: [scraped data]  Identify: 1. The single best design opportunity in this niche right now 2. The exact keywords that appear most in top-performing titles 3. The price point that top sellers are using 4. One specific design direction that is underrepresented but likely to sell  Respond in JSON: {   "sub_niche": "",   "opportunity_summary": "",   "top_keywords": [],   "recommended_design_direction": "",   "recommended_price": 0,   "competitor_title_examples": [] }
+
+Minimalist illustration for a [occupation] gift mug. Theme: [recommended_design_direction from brief]. Style: clean lines, bold readable text area at bottom,  white background, print-ready, no gradients. Do not include any brand names, logos, or copyrighted characters. High contrast, suitable for ceramic mug printing.
+
+Write an Etsy product listing for a [occupation] gift mug.  Research context: - Sub-niche: [sub_niche] - Top keywords: [top_keywords] - Competitor title examples: [competitor_title_examples] - Target price: [recommended_price]  Return JSON only: {   "title": "max 140 chars, include top keywords naturally",   "description": "3-4 sentences. Who it's for, what makes it great,                     occasions to gift it. Friendly tone.",   "tags": ["array of exactly 13 tags, mix of specific and broad"],   "price": 0.00 }  IMPORTANT: Append this exact sentence to the end of the description: "This design was created using AI image generation tools based on  original prompts. Items are printed and fulfilled by our production  partner, Printify."
+
+📊 Weekly Report — [date range]  💰 Revenue: $[gross] 🏭 Printify costs: $[printify_total] 📋 Etsy fees: $[etsy_fees] 🤖 API costs: $[api_costs] ✅ Net profit: $[net]  📦 Orders this week: [count] 🏆 Top listing: [title] — $[revenue] 📝 New listings published: [count] ⚠️ Flagged (0 impressions 14d+): [count]  [if net is negative]: ⚠️ Still in ramp-up. Break-even at [X] sales/month. [if net is positive]: 🟢 Profitable. System running well.
+
+# scheduler/main.py  from apscheduler.schedulers.blocking import BlockingScheduler from agents.research_agent import run_research from agents.design_agent import run_design from agents.publisher_agent import run_publisher from agents.reporting_agent import run_report from core.spend_monitor import check_cap  scheduler = BlockingScheduler()  def run_daily_pipeline():     if not check_cap():           # halt if $100 cap hit         return     run_research()     run_design()     run_publisher()  # Daily pipeline: 6AM, but design runs at 8AM, publisher at 10AM scheduler.add_job(run_research,   'cron', hour=6,  minute=0) scheduler.add_job(run_design,     'cron', hour=8,  minute=0) scheduler.add_job(run_publisher,  'cron', hour=10, minute=0) scheduler.add_job(run_report,     'cron', day_of_week='sun', hour=9)  scheduler.start()
+
+# Procfile (Railway entry point) worker: python scheduler/main.py
+
+# core/error_handler.py  import time import requests  def api_call_with_retry(fn, max_retries=3, agent_name="unknown"):     for attempt in range(max_retries):         try:             return fn()         except Exception as e:             wait = (2 ** attempt)          # 1s, 2s, 4s backoff             if attempt < max_retries - 1:                 time.sleep(wait)             else:                 log_error(agent_name, str(e))                 send_telegram_alert(                     f"⚠️ {agent_name} failed after {max_retries} attempts: {e}"                 )                 return None               # skip this task, don't crash
+
+Failure Type | Behavior
+Etsy API rate limit (429) | Retry with backoff. If still failing after 3 attempts, skip listing, alert via Telegram.
+Printify upload fails | Retry 3 times. If fails, design stays as 'generated' status, will retry next run.
+GPT-4o image gen fails | Retry 3 times. If fails, log and skip. Research brief stays in Supabase for next day.
+Playwright scrape blocked | Fallback to manual niche input stored in .env. Alert sent immediately.
+Spend cap hit | All agents halt. Telegram alert sent. System waits until next calendar month.
+Railway process crash | Railway auto-restarts. APScheduler resumes on restart. No data loss via Supabase.
+
+Variable | Value Source
+ETSY_API_KEY | Etsy Developer Portal → your app
+ETSY_API_SECRET | Etsy Developer Portal → your app
+ETSY_ACCESS_TOKEN | Generated via Etsy OAuth flow
+ETSY_SHOP_ID | Your Etsy shop ID
+PRINTIFY_API_KEY | Printify account → API settings
+PRINTIFY_SHOP_ID | Printify account → your connected shop
+OPENAI_API_KEY | OpenAI platform → API keys
+ANTHROPIC_API_KEY | Anthropic console → API keys
+SUPABASE_URL | Supabase project → settings → API
+SUPABASE_KEY | Supabase project → settings → API (anon key)
+TELEGRAM_BOT_TOKEN | BotFather on Telegram → create bot
+TELEGRAM_CHAT_ID | Your personal Telegram chat ID
+MONTHLY_SPEND_CAP | 100 (dollars)
+DRAFT_MODE | true (set to false after 2 weeks)
+
+Requirement | How We Handle It
+'Designed by' classification | Hard-coded in Etsy API call. Never 'Made by'.
+AI disclosure in description | Auto-appended to every description by publisher agent. Cannot be removed.
+Original prompts only | Design agent builds prompts from research data. No purchased or template prompts.
+Printify disclosed as production partner | Set in Etsy listing via production_partner field on every listing.
+No copyrighted content | Prompt template explicitly excludes brand names, characters, logos.
+Max ~8 listings per day | Hard cap in design agent. Publisher spreads uploads 15 min apart.
+Accurate mockup images | Printify generates mockups automatically from actual product templates.
+
+Auto-appended AI disclosure on every listing: "This design was created using AI image generation tools based on original prompts. Items are printed and fulfilled by our production partner, Printify."
+
+Item | Estimate | Notes
+Research Agent (Claude API) | $15-25/mo | Daily scraping + brief generation
+Design Agent (GPT-4o images) | $12-25/mo | Up to 8 images/day @ ~$0.04-0.08 each
+Publisher Agent (Claude API) | $8-15/mo | Listing copy for ~240 listings/mo
+Reporting Agent (Claude API) | $2-5/mo | Weekly summaries
+Railway hosting | $0/mo | Free tier
+Supabase | $0/mo | Free tier
+TOTAL | ~$37-70/mo | Hard capped at $100/mo
+
+Item | Amount
+Customer pays (avg) | $22.00
+Printify fulfillment cost | -$8.50
+Etsy transaction fee (6.5%) | -$1.43
+Etsy listing fee ($0.20) | -$0.20
+Net profit per sale | ~$11.87
+
+# core/spend_monitor.py  from core.supabase_client import supabase from datetime import datetime  MONTHLY_CAP = float(os.getenv("MONTHLY_SPEND_CAP", 100))  def check_cap():     start_of_month = datetime.now().replace(day=1, hour=0, minute=0)     result = supabase.table("cost_log")\         .select("cost_usd")\         .gte("timestamp", start_of_month.isoformat())\         .execute()          total_spent = sum(r["cost_usd"] for r in result.data)          if total_spent >= MONTHLY_CAP:         send_telegram_alert(             f"STOP: Monthly spend cap of $[MONTHLY_CAP] hit. "             f"All agents paused until next month."         )         return False     return True
+
+The most common failure mode is not a technical problem — it's killing the system at week 3 because results are slower than expected. Etsy takes 4-8 weeks to build organic traction. This is normal.
+
+Rule | Why It Matters
+Build in order. Don't skip phases. | Each phase depends on the previous. Skipping ahead creates debugging hell.
+Day 1 goal only: one live listing. | Proves Etsy + Printify integration works before you build anything else on top of it.
+One niche for the first 30 days. | Diffusing across multiple niches before one is working dilutes signal. You won't know what's working.
+Don't auto-publish for 2 weeks. | New shops with no history get flagged faster. Manual review protects the account early.
+Set the spend cap before anything runs. | Without it a bug could run thousands of API calls overnight.
+Give it 60 days before any judgment. | Month 1 is ramp-up. Month 2 is when real data appears. Killing it at week 3 is the #1 mistake.
+Don't tinker with it daily. | Constant prompt changes and niche switches prevent you from seeing what's actually working.
+Fix errors immediately when alerted. | A broken research agent running silently for a week generates junk designs and wasted API cost.
+
+Phase | Timeline | What Gets Added
+Core: Etsy POD (Mugs) | Week 1 | Pipeline live, break-even target
+Add: Posters + Wall Art | Week 2-3 | New Printify product type, same pipeline
+Add: Digital Downloads | Month 2 | Same designs sold as printable files. Zero fulfillment cost, 100% margin after Etsy fees.
+Add: Affiliate Blog | Month 3 | Research agent writes SEO articles, embeds affiliate links, publishes to WordPress. Compounds over time.
+Add: Amazon Merch + Redbubble | Month 3-4 | New publisher modules. Same designs, more distribution.
+Add: Research Tool Licensing | Month 4-6 | Package niche research as paid weekly report. $30-100/mo per subscriber.
+Add: Dashboard UI | Month 4-6 | React app on Vercel reading from Supabase. 4 panels: agent status, financials, listings, alerts.
+
+Month | Active Channels | Est. Monthly Net
+1-2 | Etsy POD (mugs) | $0-300 (ramp-up)
+3 | Etsy POD + digital downloads | $300-800
+4 | Above + affiliate blog starting | $500-1,200
+5-6 | Above + Amazon/Redbubble | $800-2,500
+6+ | Full stack | $1,500-4,000+
+
+Item | Detail
+Build time | 3-4 days in Cursor with Claude Sonnet
+Hosting | Railway free tier
+Monthly operating cost | $37-70/mo (hard capped at $100)
+Break-even | 4-6 sales/month
+Max downside | ~$140 over 60 days before pivot/kill decision
+Human time (first 2 weeks) | ~10 min every few days to review and approve drafts
+Human time (ongoing) | ~15 min/week to review Telegram report
+New channel cost | 1-2 days per additional platform
+Expected Month 6+ net | $1,500-4,000+/mo (full stack, conservative)

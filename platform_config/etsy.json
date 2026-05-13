@@ -1,0 +1,41 @@
+{
+  "platform": "etsy",
+  "enabled": true,
+  "research": {
+    "search_queries": [
+      "nurse gift mug",
+      "teacher gift mug",
+      "electrician gift mug",
+      "plumber gift mug",
+      "firefighter gift mug",
+      "engineer gift mug"
+    ],
+    "results_per_query": 20,
+    "sort_by": "most_relevant",
+    "extract_fields": ["title", "price", "review_count", "tags"]
+  },
+  "listing": {
+    "max_title_chars": 140,
+    "tag_count": 13,
+    "classification": "designed_by",
+    "requires_production_partner": true,
+    "ai_disclosure_required": true,
+    "ai_disclosure_text": "This design was created using AI image generation tools based on original prompts. Items are printed and fulfilled by our production partner, Printify.",
+    "default_price": 22.99,
+    "default_quantity": 999
+  },
+  "products": {
+    "mug_11oz": {
+      "printify_blueprint_id": 36,
+      "printify_print_provider_id": 99,
+      "image_size_px": 1200,
+      "image_dpi": 150
+    }
+  },
+  "compliance": {
+    "daily_listing_cap": 8,
+    "listing_spacing_minutes": 15,
+    "draft_mode_days": 14
+  },
+  "publisher_module": "publishers.etsy_printify"
+}

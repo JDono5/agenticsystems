@@ -1,0 +1,121 @@
+AI AGENT PASSIVE INCOME SYSTEM
+Complete Build Specification
+Version 2.0  •  May 2026
+1. What We're Building
+A modular AI agent system that runs continuously in the background, researching demand on Etsy, generating original designs, publishing listings automatically, and reporting profits weekly. Zero manual work after initial setup. The goal is a profitable, self-sustaining passive income pipeline live within 3-4 days.
+2. 4-Day Build Timeline
+Build in strict order. Each day has one clear goal. Don't move to the next day until the current day's goal is confirmed working.
+Day 1 — Prove the Pipeline Works
+Goal: one design on one live Etsy listing. Manual if needed. The only thing that matters today is confirming the Etsy + Printify integration actually works end to end.
+Create Etsy seller account and Printify account
+Connect Printify to Etsy store in Printify dashboard
+Get API keys: Etsy (OAuth), Printify (API key), OpenAI, Anthropic
+Write a single 20-line script that generates one image via GPT-4o and uploads it to Printify on a mug template
+Manually create one Etsy draft listing from that Printify product
+Confirm it appears correctly in Etsy seller dashboard
+Day 2 — Automate the Core Loop
+Goal: research agent and design agent running, publisher creating draft listings automatically.
+Set up Supabase project, create all five tables (schema in Section 4)
+Build research_agent.py — scrapes Etsy occupation gift bestsellers, stores brief in Supabase
+Build design_agent.py — reads brief, generates 5 designs using prompt template (Section 5), logs costs
+Build publisher_agent.py — creates Printify product, writes listing copy, pushes to Etsy as DRAFT
+Run full pipeline manually end to end, confirm 5 draft listings appear in Etsy
+Day 3 — Scheduler, Monitoring, Deploy
+Goal: system running automatically on Railway without your PC.
+Build reporting_agent.py — Telegram bot sends weekly P&L summary
+Build spend_monitor.py — checks monthly API cost against $100 cap before any agent runs
+Wire all agents into APScheduler with daily/weekly schedule (Section 6)
+Push to GitHub, deploy to Railway, set all environment variables
+Confirm Railway runs the full daily cycle overnight without errors
+Day 4 — Review, Approve, Hands Off
+Goal: first real listings live, system running autonomously.
+Review the draft listings generated on Day 2-3, approve the good ones, publish them
+Fix any errors from overnight Railway run
+Confirm Telegram report arrives correctly
+Walk away. Let it run.
+3. System Architecture
+3.1 Tech Stack
+3.2 File Structure
+3.3 Daily Schedule
+3.4 Modular Publisher Layer
+The research, design, and reporting agents are platform-agnostic. Only the publisher is platform-specific. Adding a new sales channel = one new file in /publishers. Nothing else changes.
+4. Supabase Database Schema
+Create these five tables on Day 1. All agents read and write through supabase_client.py.
+research_briefs
+designs
+listings
+cost_log
+sales
+5. Agent Specifications
+5.1 Research Agent
+Runs daily at 6:00 AM. Uses Playwright to scrape Etsy search results and bestseller pages, extracts patterns from top listings, then calls Claude to synthesize a daily brief.
+Scrape targets (starting):
+https://www.etsy.com/search?q=nurse+gift+mug&order=most_relevant
+https://www.etsy.com/search?q=teacher+gift+mug&order=most_relevant
+https://www.etsy.com/search?q=electrician+gift+mug&order=most_relevant
+Rotate through 10+ occupation sub-niches over time
+What it extracts from each listing:
+Full title text
+Price
+Number of sales (if visible)
+Number of reviews
+Tags (from listing page)
+Claude brief generation prompt:
+5.2 Design Agent
+Runs at 8:00 AM after research completes. Reads the daily brief from Supabase, builds image generation prompts, calls GPT-4o, saves output files with metadata. Hard cap: 8 designs per day.
+Image generation prompt template:
+Output per design:
+Image file saved to /designs/[date]/[uuid].png
+Metadata JSON: brief_id, prompt_used, generation_cost, timestamp
+Status set to 'generated' in Supabase designs table
+Cost logged to cost_log table immediately
+5.3 Publisher Agent
+Runs at 10:00 AM after design agent completes. For each approved (or generated, in auto-publish mode) design: creates a Printify product, generates listing copy via Claude, pushes to Etsy.
+Printify flow:
+Authenticate with Printify API using API key
+Select mug product template (blueprint_id for 11oz white mug)
+Upload design image to Printify
+Place design on template, set print area
+Create product, get printify_product_id back
+Listing copy prompt:
+Etsy listing creation:
+Authenticate via Etsy OAuth 2.0
+Create listing with 'Designed by' classification
+Set status to 'draft' (first 2 weeks) or 'active' (auto-publish mode)
+Attach Printify product via Etsy's production partner field
+Log etsy_listing_id and printify_product_id to Supabase listings table
+5.4 Reporting Agent
+Runs every Sunday at 9:00 AM. Pulls all data from the past 7 days, calculates P&L, sends Telegram message.
+Telegram message format:
+6. Scheduler Configuration
+All scheduling handled by APScheduler running in scheduler/main.py. This is the Railway entry point via Procfile.
+7. Error Handling
+Every API call is wrapped in the same retry pattern. Failures never crash the pipeline — they log, alert, and skip.
+8. Railway Deployment
+8.1 Setup Steps
+Push code to a private GitHub repository
+Go to railway.app, create account (no credit card needed for free tier)
+New project → Deploy from GitHub repo → select your repo
+Railway auto-detects Python. Set start command to: python scheduler/main.py
+Add all environment variables (see Section 8.2)
+Deploy. Confirm logs show scheduler starting correctly.
+8.2 Environment Variables
+8.3 Telegram Bot Setup (5 minutes)
+Open Telegram, search for @BotFather
+Send /newbot, follow prompts, get your TELEGRAM_BOT_TOKEN
+Search @userinfobot in Telegram, send /start to get your TELEGRAM_CHAT_ID
+Add both to Railway environment variables
+Test: python -c "from core.error_handler import send_telegram_alert; send_telegram_alert('test')"
+9. Etsy Compliance
+Every listing the publisher agent creates must pass all of the following. These are hard-coded into publisher_agent.py, not optional.
+10. Cost Model
+10.1 Monthly Operating Costs
+10.2 Per-Sale Economics (Mug)
+Break-even: roughly 4-6 sales/month covers all operating costs. Everything above that is profit.
+10.3 Spend Cap Logic
+11. Rules for Not Failing
+12. Expansion Roadmap
+Once the core pipeline is profitable, every expansion reuses the same four agents. Only the publisher module changes per new channel.
+13. Summary
+Build the core. Prove it works. Expand systematically. Each phase funds the next.
+AI Agent Passive Income System — Complete Build Specification v2.0 — May 2026

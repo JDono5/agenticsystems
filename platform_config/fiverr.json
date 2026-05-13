@@ -1,0 +1,31 @@
+{
+  "platform": "fiverr",
+  "enabled": true,
+  "fulfillment_model": "email_notification",
+  "service": "youtube_thumbnails",
+  "research": {
+    "search_queries": [
+      "youtube thumbnail design",
+      "youtube thumbnail gaming",
+      "youtube thumbnail fitness",
+      "youtube thumbnail finance"
+    ],
+    "results_per_query": 20,
+    "extract_fields": ["title", "seller_level", "review_count", "starting_price", "delivery_days"]
+  },
+  "gig": {
+    "title": "I will design eye-catching YouTube thumbnails that boost clicks",
+    "packages": {
+      "basic":    { "price": 10, "delivery_days": 1, "quantity": 1 },
+      "standard": { "price": 25, "delivery_days": 1, "quantity": 3 },
+      "premium":  { "price": 50, "delivery_days": 1, "quantity": 5 }
+    },
+    "tags": ["youtube thumbnail", "thumbnail design", "youtube", "channel art"]
+  },
+  "fulfillment": {
+    "delivery_format": "PNG",
+    "delivery_size_px": "1280x720",
+    "turnaround_hours": 23
+  },
+  "publisher_module": "publishers.fiverr"
+}
