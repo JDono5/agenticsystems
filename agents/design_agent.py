@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+ROOT = Path(__file__).parent.parent
+
 import openai
 from dotenv import load_dotenv
 
@@ -18,8 +20,6 @@ from core.supabase_client import save_design, get_latest_brief
 from core.cost_logger import log_cost, calc_openai_cost
 from core.spend_monitor import check_cap
 from core.error_handler import api_call_with_retry
-from core.image_processor import process_design_background
-
 load_dotenv()
 
 AGENT_NAME      = "design_agent"
@@ -258,7 +258,7 @@ def save_to_disk(
 ) -> tuple[str, str]:
     """Save image + sidecar JSON. Returns (file_path, image_uuid)."""
     image_uuid = str(uuid.uuid4())
-    output_dir = Path("designs") / niche_slug(sub_niche) / date_str
+    output_dir = ROOT / "designs" / niche_slug(sub_niche) / date_str
     output_dir.mkdir(parents=True, exist_ok=True)
 
     image_path = output_dir / f"{image_uuid}.png"
@@ -380,16 +380,6 @@ def run_design(target: int = TARGET_APPROVED, max_attempts: int = MAX_ATTEMPTS, 
             cost_usd=qa_cost,
         )
         total_cost += qa_cost
-
-        # Remove white background on approved designs so Printify gets a
-        # transparent PNG that works on any product colour.  QA already ran on
-        # the original white-background version so the background check stays valid.
-        if passed_qa:
-            try:
-                process_design_background(file_path)
-                print(f"[{AGENT_NAME}]   Background removed (transparent PNG ready for Printify)")
-            except Exception as bg_err:
-                print(f"[{AGENT_NAME}]   Background removal failed (continuing): {bg_err}")
 
         final_status = "approved" if passed_qa else "rejected"
         save_design({

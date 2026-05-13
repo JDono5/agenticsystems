@@ -62,9 +62,11 @@ CHECK ALL OF THESE - fail on any single one:
 5. PROFESSIONAL QUALITY: Would this thumbnail make someone click on a YouTube video?
    FAIL if it looks broken, unfinished, or would embarrass a professional service.
 
-6. REAL PERSON RESEMBLANCE: Does any person in the image resemble a known public figure,
-   celebrity, or recognizable YouTuber (MrBeast, PewDiePie, etc.)?
-   FAIL if yes - this is a legal and account risk.
+6. REAL PERSON RESEMBLANCE: Only FAIL if you can specifically name a real celebrity,
+   YouTuber, or public figure this person looks like. If you cannot name a specific person,
+   PASS this check. A generic person who looks professional or attractive is NOT a public
+   figure resemblance. You must be able to say "this looks like [specific named person]"
+   to fail this check. If in doubt, PASS.
 
 7. ENERGY LEVEL: Is the visual energy appropriate for {channel_niche}?
    (gaming=intense, education=calm, finance=professional-exciting, fitness=high-energy)

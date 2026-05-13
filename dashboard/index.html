@@ -2,1701 +2,1224 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Agent System</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agentic Income Engine</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.6.0/dist/tabler-icons.min.css">
 <style>
-:root {
-  --bg: #0A0A0A;
-  --surface: #111111;
-  --surface2: #1A1A1A;
-  --surface3: #242424;
-  --border: #2a2a2a;
-  --accent: #C8FF00;
-  --accent-dim: rgba(200,255,0,.15);
-  --text: #e8e8e8;
-  --text2: #888;
-  --text3: #555;
-  --green: #22c55e;
-  --yellow: #eab308;
-  --red: #ef4444;
-  --blue: #3b82f6;
-  --sidebar-w: 230px;
-  --radius: 8px;
-}
+/* ── Reset & base ───────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;display:flex;height:100vh;overflow:hidden}
-a{color:var(--accent);text-decoration:none}
-button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:13px}
-input,select,textarea{font-family:inherit;font-size:13px;background:var(--surface3);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
-scrollbar-width:thin;scrollbar-color:var(--border) transparent;
-::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+:root{
+  --bg:#0A0A0A;--s1:#111;--s2:#1A1A1A;--s3:#222;--s4:#2a2a2a;
+  --acc:#C8FF00;--acc2:#a8d900;
+  --text1:#F0F0F0;--text2:#AAA;--text3:#666;
+  --green:#4caf50;--yellow:#ffc107;--red:#f44336;--blue:#2196f3;--purple:#9c27b0;
+  --sidebar-w:200px;--activity-w:280px;--strip-h:72px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text1);font-family:'Inter',system-ui,sans-serif;font-size:13px;overflow:hidden}
 
-/* ── Sidebar ── */
-.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;flex-shrink:0}
-.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.sidebar-logo .logo-icon{width:30px;height:30px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;font-size:14px}
-.sidebar-logo .logo-text{font-weight:700;font-size:13px;color:var(--text)}
-.sidebar-logo .logo-sub{font-size:11px;color:var(--text2)}
-.sidebar-clock{padding:8px 16px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border)}
-.nav-section{padding:8px 0}
-.nav-label{padding:6px 16px 4px;font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--text3);text-transform:uppercase}
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+#app{display:flex;flex-direction:column;height:100vh}
+.header{flex-shrink:0;height:48px;background:var(--s1);border-bottom:1px solid #222;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:100}
+.layout{display:flex;flex:1;overflow:hidden}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--s1);border-right:1px solid #222;overflow-y:auto;display:flex;flex-direction:column}
+.content{flex:1;overflow-y:auto;padding:20px}
+.activity-panel{width:var(--activity-w);flex-shrink:0;background:var(--s1);border-left:1px solid #222;display:flex;flex-direction:column;overflow:hidden}
+.task-strip{flex-shrink:0;height:var(--strip-h);background:var(--s2);border-top:1px solid #222;display:flex;align-items:center;padding:0 16px;gap:12px;overflow-x:auto}
 
-/* Direct nav items */
-.nav-item{display:flex;align-items:center;gap:9px;padding:7px 16px;color:var(--text2);cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:13px;user-select:none}
-.nav-item:hover{background:var(--surface2);color:var(--text)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent)}
-.nav-item .ti{font-size:16px;flex-shrink:0}
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.header-logo{font-size:14px;font-weight:700;color:var(--acc);letter-spacing:.5px;white-space:nowrap}
+.header-logo span{color:var(--text2);font-weight:400}
+.header-spacer{flex:1}
+.header-spend{font-size:11px;color:var(--text3);white-space:nowrap}
+.header-spend b{color:var(--text1)}
+.bell-btn{position:relative;background:none;border:none;color:var(--text2);cursor:pointer;padding:6px;border-radius:6px;font-size:18px;line-height:1}
+.bell-btn:hover{color:var(--text1);background:var(--s3)}
+.bell-badge{position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.bell-badge.hidden{display:none}
+.notif-dropdown{position:absolute;top:48px;right:8px;width:320px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;z-index:200;max-height:400px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.notif-header{padding:10px 14px;border-bottom:1px solid var(--s3);display:flex;align-items:center;justify-content:space-between}
+.notif-header span{font-size:12px;font-weight:600;color:var(--text1)}
+.notif-clear{background:none;border:none;color:var(--acc);font-size:11px;cursor:pointer}
+.notif-item{padding:10px 14px;border-bottom:1px solid #1e1e1e;display:flex;gap:10px;align-items:flex-start}
+.notif-item:last-child{border-bottom:none}
+.notif-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.notif-body{flex:1}
+.notif-msg{font-size:12px;color:var(--text1);line-height:1.4}
+.notif-time{font-size:10px;color:var(--text3);margin-top:2px}
+.notif-empty{padding:24px;text-align:center;color:var(--text3);font-size:12px}
 
-/* Expandable group */
-.nav-group{}
-.nav-group-header{display:flex;align-items:center;gap:9px;padding:7px 16px;color:var(--text2);cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:13px;user-select:none}
-.nav-group-header:hover{background:var(--surface2);color:var(--text)}
-.nav-group-header.open{color:var(--text)}
-.nav-group-header.open .arrow{transform:rotate(90deg)}
-.nav-group-header.parent-active{border-left-color:var(--accent);color:var(--accent)}
-.nav-group-header .arrow{margin-left:auto;font-size:12px;transition:transform .2s;color:var(--text3)}
-.nav-group-header .ti{font-size:16px;flex-shrink:0}
-.nav-group-children{overflow:hidden;max-height:0;transition:max-height .25s ease}
-.nav-group-children.open{max-height:200px}
-.nav-child{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 38px;color:var(--text3);cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:12px;user-select:none}
-.nav-child:hover{background:var(--surface2);color:var(--text)}
-.nav-child.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent)}
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.sidebar-section{padding:6px 8px 2px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--text2);transition:.15s;margin:1px 6px;font-size:12px;font-weight:500}
+.nav-item:hover{color:var(--text1);background:var(--s2)}
+.nav-item.active{color:var(--acc);background:rgba(200,255,0,.07);border-left:2px solid var(--acc);padding-left:8px}
+.nav-item i{font-size:16px;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:10px;border-top:1px solid #222}
 
-/* ── Main ── */
-.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.topbar-title{font-size:15px;font-weight:600}
-.topbar-actions{display:flex;gap:8px}
-.content{padding:24px 24px 72px;flex:1}
+/* ── Activity panel ──────────────────────────────────────────────────────── */
+.activity-header{padding:10px 12px;border-bottom:1px solid #222;font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.activity-list{flex:1;overflow-y:auto;padding:4px 0}
+.act-item{padding:7px 10px;border-bottom:1px solid #161616;display:flex;gap:8px;align-items:flex-start}
+.act-item:hover{background:var(--s2)}
+.act-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.act-body{flex:1;min-width:0}
+.act-msg{font-size:11px;color:var(--text1);line-height:1.4;word-break:break-word}
+.act-meta{font-size:10px;color:var(--text3);margin-top:1px}
+.act-empty{padding:24px 10px;text-align:center;color:var(--text3);font-size:11px}
 
-/* ── Cards / panels ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-.card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+/* ── Task strip ──────────────────────────────────────────────────────────── */
+.strip-idle{color:var(--text3);font-size:11px;display:flex;align-items:center;gap:6px}
+.task-card{flex-shrink:0;background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:8px 12px;min-width:170px;max-width:220px;position:relative;overflow:hidden}
+.task-card.running{border-color:var(--acc);animation:task-pulse 2s infinite}
+.task-card.error{border-color:var(--red)}
+.task-card.done{opacity:.5}
+@keyframes task-pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,255,0,.2)}50%{box-shadow:0 0 0 4px rgba(200,255,0,.1)}}
+.tc-name{font-size:11px;font-weight:600;color:var(--text1);margin-bottom:3px;display:flex;align-items:center;gap:5px}
+.tc-step{font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-bar-bg{height:3px;background:var(--s4);border-radius:2px;margin-top:5px;overflow:hidden}
+.tc-bar{height:100%;background:var(--acc);border-radius:2px;transition:width .4s}
+.tc-bar.error-bar{background:var(--red)}
+.tc-footer{display:flex;justify-content:space-between;margin-top:4px}
+.tc-elapsed{font-size:10px;color:var(--text3)}
+.tc-cost{font-size:10px;color:var(--acc)}
+.tc-dismiss{position:absolute;top:4px;right:6px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0}
+.tc-dismiss:hover{color:var(--text1)}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:dot-blink 1s infinite}
+@keyframes dot-blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-/* ── Stats grid ── */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
-.stat-label{font-size:11px;color:var(--text2);margin-bottom:6px}
-.stat-value{font-size:22px;font-weight:700;color:var(--text)}
-.stat-value.accent{color:var(--accent)}
-.stat-sub{font-size:11px;color:var(--text3);margin-top:3px}
+/* ── Content sections ────────────────────────────────────────────────────── */
+.section{display:none}
+.section.active{display:block}
+h2.page-title{font-size:16px;font-weight:700;color:var(--text1);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+h2.page-title i{color:var(--acc)}
 
-/* ── Grid ── */
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card{background:var(--s2);border:1px solid var(--s3);border-radius:8px;padding:16px}
+.card-sm{background:var(--s2);border:1px solid var(--s3);border-radius:8px;padding:12px}
+.card-title{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
 
-/* ── Tables ── */
-table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
-td{padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border)}
-tr:last-child td{border-bottom:none}
-tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-.table-wrap{overflow-x:auto}
+/* ── Stat tiles ──────────────────────────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.stat-tile{background:var(--s2);border:1px solid var(--s3);border-radius:8px;padding:14px}
+.stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-val{font-size:22px;font-weight:700;color:var(--text1)}
+.stat-sub{font-size:10px;color:var(--text3);margin-top:2px}
 
-/* ── Badges ── */
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
-.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
-.badge-yellow{background:rgba(234,179,8,.15);color:var(--yellow)}
-.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
-.badge-blue{background:rgba(59,130,246,.15);color:var(--blue)}
-.badge-gray{background:rgba(136,136,136,.15);color:var(--text2)}
-.badge-accent{background:var(--accent-dim);color:var(--accent)}
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:6px 10px;color:var(--text3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--s3)}
+.tbl td{padding:7px 10px;border-bottom:1px solid #161616;color:var(--text2)}
+.tbl tr:hover td{background:var(--s3)}
 
-/* ── Buttons ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-weight:500;transition:all .15s;cursor:pointer;border:none}
-.btn-accent{background:var(--accent);color:#000}
-.btn-accent:hover{opacity:.9}
-.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
-.btn-ghost:hover{background:var(--surface2);color:var(--text)}
-.btn-sm{padding:4px 10px;font-size:12px}
-.btn-green{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)}
-.btn-green:hover{background:rgba(34,197,94,.25)}
-.btn-red{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
-.btn-red:hover{background:rgba(239,68,68,.25)}
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:500;transition:.15s}
+.btn-acc{background:var(--acc);color:#000}
+.btn-acc:hover{background:var(--acc2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--s4)}
+.btn-ghost:hover{color:var(--text1);border-color:var(--text3)}
+.btn-danger{background:rgba(244,67,54,.15);color:var(--red);border:1px solid rgba(244,67,54,.3)}
+.btn-danger:hover{background:rgba(244,67,54,.25)}
+.btn-sm{padding:4px 8px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 
-/* ── Tabs ── */
-.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0}
-.tab{padding:7px 14px;border-radius:var(--radius) var(--radius) 0 0;cursor:pointer;font-size:13px;color:var(--text2);border:1px solid transparent;border-bottom:none;margin-bottom:-1px;transition:all .15s}
-.tab:hover{color:var(--text)}
-.tab.active{background:var(--surface2);color:var(--accent);border-color:var(--border)}
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.3px}
+.badge-green{background:rgba(76,175,80,.15);color:var(--green)}
+.badge-yellow{background:rgba(255,193,7,.15);color:var(--yellow)}
+.badge-red{background:rgba(244,67,54,.15);color:var(--red)}
+.badge-blue{background:rgba(33,150,243,.15);color:var(--blue)}
+.badge-gray{background:rgba(150,150,150,.1);color:var(--text3)}
+.badge-acc{background:rgba(200,255,0,.12);color:var(--acc)}
 
-/* ── Progress bar ── */
-.progress-bar{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden}
-.progress-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
-.progress-fill.warn{background:var(--yellow)}
-.progress-fill.danger{background:var(--red)}
+/* ── Progress bar ────────────────────────────────────────────────────────── */
+.progress-wrap{background:var(--s3);border-radius:4px;height:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;transition:width .5s}
+.progress-fill.green{background:var(--green)}
+.progress-fill.yellow{background:var(--yellow)}
+.progress-fill.red{background:var(--red)}
+.progress-fill.acc{background:var(--acc)}
 
-/* ── Design gallery ── */
-.design-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
-.design-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:border-color .15s}
-.design-card:hover{border-color:var(--accent)}
-.design-card .img-wrap{width:100%;aspect-ratio:16/9;overflow:hidden;background:var(--surface3)}
-.design-card .img-wrap img{width:100%;height:100%;object-fit:cover}
-.design-card .img-wrap.square{aspect-ratio:1/1}
-.design-card .card-body{padding:10px}
-.design-card .card-body .dc-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
-.design-card .card-body .dc-meta{font-size:11px;color:var(--text2);margin-bottom:6px}
-.design-card .card-body .dc-meta span{display:block}
-.design-card .card-footer{padding:8px 10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px}
+/* ── Two-column layout ───────────────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 
-/* ── Agent grid ── */
-.agent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px}
-.agent-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
-.agent-card .agent-name{font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px}
-.agent-card .agent-name .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.agent-card .agent-meta{font-size:11px;color:var(--text2);margin-bottom:10px}
-.dot-green{background:var(--green)}
-.dot-yellow{background:var(--yellow)}
-.dot-red{background:var(--red)}
-.dot-gray{background:var(--text3)}
+/* ── Section: Overview ───────────────────────────────────────────────────── */
+.ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.quick-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.conditions-mini{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+.cond-item{background:var(--s3);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:6px}
+.cond-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cond-dot.run{background:var(--green)}
+.cond-dot.skip{background:var(--yellow)}
+.cond-name{font-size:11px;font-weight:500;color:var(--text1);flex:1}
+.cond-reason{font-size:10px;color:var(--text3);margin-top:1px}
 
-/* ── Log stream ── */
-.log-stream{background:#000;border:1px solid var(--border);border-radius:var(--radius);padding:12px;height:260px;overflow-y:auto;font-family:'Courier New',monospace;font-size:12px;color:#7fff7f}
-.log-line{margin-bottom:2px;word-break:break-all}
-.log-line.err{color:#ff6b6b}
-.log-line.done{color:var(--accent)}
+/* ── Section: Income Streams ─────────────────────────────────────────────── */
+.stream-col{display:flex;flex-direction:column;gap:14px}
+.stream-header{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.stream-header h3{font-size:14px;font-weight:700}
+.design-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:10px}
+.dc{background:var(--s3);border-radius:6px;overflow:hidden;border:1px solid var(--s4)}
+.dc img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.dc-placeholder{width:100%;aspect-ratio:1;background:var(--s4);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--text3)}
+.dc-placeholder i{font-size:24px}
+.dc-body{padding:7px}
+.dc-niche{font-size:10px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-meta{font-size:10px;color:var(--text3);margin-top:2px}
+.dc.rejected{opacity:.45}
 
-/* ── Scout cards ── */
-.proposal-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
-.proposal-card .proposal-title{font-size:14px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.proposal-card .proposal-body{font-size:12px;color:var(--text2);margin-bottom:10px}
-.proposal-card .proposal-row{display:flex;gap:16px;font-size:12px;color:var(--text2);margin-bottom:10px;flex-wrap:wrap}
-.proposal-card .proposal-actions{display:flex;gap:8px}
+/* ── Section: Intelligence ───────────────────────────────────────────────── */
+.proposal-card{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:14px;margin-bottom:10px}
+.proposal-name{font-size:13px;font-weight:600;color:var(--text1);margin-bottom:6px}
+.proposal-how{font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.5}
+.proposal-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.proposal-actions{display:flex;gap:8px}
+.memory-card{background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:10px;margin-bottom:6px}
+.mem-key{font-size:11px;font-weight:600;color:var(--acc);margin-bottom:4px}
+.mem-val{font-size:11px;color:var(--text2);word-break:break-all}
 
-/* ── Memory cards ── */
-.memory-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
-.memory-card .mem-key{font-size:13px;font-weight:600;margin-bottom:4px}
-.memory-card .mem-val{font-size:12px;color:var(--text2);margin-bottom:8px;word-break:break-word}
-.memory-card .mem-meta{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text3)}
+/* ── Section: Pipeline ───────────────────────────────────────────────────── */
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.agent-card{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:12px}
+.agent-card.running{border-color:var(--acc)}
+.agent-card.error-state{border-color:var(--red)}
+.ac-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ac-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ac-dot.green{background:var(--green)}
+.ac-dot.yellow{background:var(--yellow);animation:dot-blink 1s infinite}
+.ac-dot.red{background:var(--red)}
+.ac-dot.gray{background:var(--s4)}
+.ac-name{font-size:12px;font-weight:600;color:var(--text1);flex:1}
+.ac-cond{font-size:10px;color:var(--text3);margin-bottom:8px;line-height:1.4;min-height:28px}
+.ac-cond.skip-cond{color:var(--yellow)}
+.cond-table{width:100%;margin-top:12px}
+.cond-row{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--s4)}
+.cond-row:last-child{border-bottom:none}
+.cond-row-name{font-size:11px;font-weight:600;color:var(--text1);width:120px;flex-shrink:0}
+.cond-row-reason{font-size:11px;color:var(--text2);flex:1;line-height:1.4}
 
-/* ── Lightbox ── */
-.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1000;align-items:center;justify-content:center}
-.lightbox.open{display:flex}
-.lightbox img{max-width:90vw;max-height:85vh;border-radius:var(--radius)}
-.lightbox .lb-close{position:absolute;top:16px;right:16px;font-size:28px;color:#fff;cursor:pointer;background:none;border:none}
+/* ── Log panel ───────────────────────────────────────────────────────────── */
+.log-panel{background:var(--bg);border:1px solid var(--s3);border-radius:6px;height:260px;overflow-y:auto;padding:8px;font-family:'Fira Mono','Courier New',monospace;font-size:11px;color:#aaa}
+.log-panel .log-line{padding:1px 0;white-space:pre-wrap;word-break:break-all}
+.log-panel .log-line.err{color:var(--red)}
+.log-panel .log-line.ok{color:var(--green)}
 
-/* ── Orchestrator ── */
-.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:400px}
-.chat-history{flex:1;overflow-y:auto;padding:12px 0;display:flex;flex-direction:column;gap:10px}
-.msg{max-width:75%;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5}
-.msg-user{align-self:flex-end;background:var(--accent-dim);border:1px solid rgba(200,255,0,.3);color:var(--text)}
-.msg-agent{align-self:flex-start;background:var(--surface2);border:1px solid var(--border);color:var(--text)}
-.msg-time{font-size:10px;color:var(--text3);margin-top:4px;text-align:right}
-.chat-input-row{display:flex;gap:8px;margin-top:12px}
-.chat-input-row input{flex:1}
+/* ── Orchestrator ────────────────────────────────────────────────────────── */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 48px - var(--strip-h) - 40px)}
+.chat-history{flex:1;overflow-y:auto;padding:10px 0;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:75%;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6}
+.chat-msg.user{align-self:flex-end;background:rgba(200,255,0,.12);border:1px solid rgba(200,255,0,.2);color:var(--text1)}
+.chat-msg.assistant{align-self:flex-start;background:var(--s2);border:1px solid var(--s3);color:var(--text1)}
+.chat-msg.ts{font-size:10px;color:var(--text3);margin-top:4px;align-self:flex-end}
+.chat-input-row{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--s3)}
+.chat-input{flex:1;background:var(--s2);border:1px solid var(--s3);border-radius:6px;padding:10px;color:var(--text1);font-size:13px;resize:none;height:60px;font-family:inherit}
+.chat-input:focus{outline:none;border-color:var(--acc)}
 
-/* ── Finance ── */
-.pnl-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
-.pnl-row:last-child{border-bottom:none}
-.pnl-row .label{color:var(--text2)}
-.pnl-row .val{font-weight:600}
-.pnl-row.total .val{color:var(--accent);font-size:15px}
-.pnl-section{margin-bottom:20px}
-.pnl-section h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px}
-
-/* ── Views ── */
-.view{display:none}
-.view.active{display:block}
-
-/* ── Status bar ── */
-#statusbar{position:fixed;bottom:0;left:0;right:0;height:48px;background:#111111;border-top:1px solid rgba(200,255,0,.3);display:flex;align-items:center;padding:0 16px;gap:14px;z-index:200;flex-shrink:0}
-.sb-label{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;flex-shrink:0}
-.sb-pills{display:flex;gap:5px;overflow:hidden;flex-wrap:nowrap;align-items:center;min-width:0}
-.sb-pill{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:11px;color:var(--text2);white-space:nowrap;position:relative;overflow:hidden;transition:opacity .4s,border-color .3s}
-.sb-pill.running{border-color:rgba(234,179,8,.4);color:var(--yellow)}
-.sb-pill.complete{border-color:rgba(34,197,94,.25);color:var(--green)}
-.sb-pill.error{border-color:rgba(239,68,68,.4);color:var(--red)}
-.sb-pill.fading{opacity:.35}
-.pill-bar{position:absolute;left:0;top:0;bottom:0;background:rgba(234,179,8,.18);transition:width .6s ease;z-index:0}
-.sb-pill>*{position:relative;z-index:1}
-.sb-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.sb-dot-green{background:var(--green)}
-.sb-dot-yellow{background:var(--yellow);animation:sbpulse 1.4s infinite}
-.sb-dot-red{background:var(--red)}
-.sb-dot-gray{background:var(--text3)}
-@keyframes sbpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
-.sb-center{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;min-width:0;overflow:hidden}
-.sb-active-dot{width:7px;height:7px;border-radius:50%;background:var(--yellow);animation:sbpulse 1.2s infinite;flex-shrink:0}
-.sb-center-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)}
-.sb-center-step{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
-.sb-right{display:flex;align-items:center;gap:8px;flex-shrink:0;font-size:11px;color:var(--text2)}
-.sb-spend-bar{width:60px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden}
-.sb-spend-fill{height:100%;background:var(--green);border-radius:2px;transition:width .5s,background .3s}
-
-/* ── Empty state ── */
-.empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
-.empty-state .ti{font-size:40px;display:block;margin-bottom:12px;color:var(--text3)}
-.empty-state p{font-size:13px}
-
-/* ── Stat bar (platform-specific) ── */
-.stat-bar{display:flex;gap:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;flex-wrap:wrap}
-.stat-bar-item{display:flex;flex-direction:column}
-.stat-bar-item .sbi-val{font-size:18px;font-weight:700;color:var(--text)}
-.stat-bar-item .sbi-label{font-size:11px;color:var(--text2)}
-
-/* ── Platform stream ── */
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.section-header h2{font-size:18px;font-weight:700}
-.section-header p{font-size:12px;color:var(--text2);margin-top:2px}
-
-/* ─── Alerts ── */
-.alert-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius);margin-bottom:8px;border-left:3px solid var(--yellow)}
-.alert-item.err{border-left-color:var(--red)}
-.alert-item .ti{color:var(--yellow);flex-shrink:0;margin-top:1px}
-.alert-item.err .ti{color:var(--red)}
-.alert-item .alert-text{font-size:12px;color:var(--text2)}
-.alert-item .alert-time{font-size:11px;color:var(--text3);margin-top:2px}
+/* ── Misc ────────────────────────────────────────────────────────────────── */
+.divider{border:none;border-top:1px solid var(--s3);margin:14px 0}
+.empty-state{text-align:center;padding:32px 16px;color:var(--text3)}
+.empty-state i{font-size:32px;margin-bottom:8px;display:block}
+.empty-state p{font-size:12px}
+.loading{color:var(--text3);font-size:12px;padding:16px 0}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--s3);border-top-color:var(--acc);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tabs{display:flex;gap:4px;margin-bottom:14px}
+.tab{padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:500;color:var(--text3);background:none;border:none}
+.tab.active,.tab:hover{color:var(--text1);background:var(--s3)}
+.tab.active{color:var(--acc)}
+.section-sub{margin-bottom:20px}
+.section-sub-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--s3);display:flex;align-items:center;justify-content:space-between}
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- ══════════════════ SIDEBAR ══════════════════ -->
-<nav class="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-icon">AI</div>
-    <div>
-      <div class="logo-text">Agent System</div>
-      <div class="logo-sub">Passive Income Engine</div>
+<!-- ══ Header ══════════════════════════════════════════════════════════════ -->
+<header class="header">
+  <div class="header-logo">AGENTIC <span>INCOME ENGINE</span></div>
+  <div class="header-spacer"></div>
+  <div class="header-spend" id="hdr-spend">Loading...</div>
+  <div style="position:relative">
+    <button class="bell-btn" id="bell-btn" onclick="toggleNotifDropdown()">
+      <i class="ti ti-bell"></i>
+      <span class="bell-badge hidden" id="bell-badge">0</span>
+    </button>
+    <div class="notif-dropdown" id="notif-dropdown" style="display:none">
+      <div class="notif-header">
+        <span>Notifications</span>
+        <button class="notif-clear" onclick="clearNotifications()">Mark all read</button>
+      </div>
+      <div id="notif-list"></div>
     </div>
   </div>
-  <div class="sidebar-clock" id="clock">--:-- --</div>
+</header>
 
-  <div class="nav-section">
-    <div class="nav-label">Dashboard</div>
-    <div class="nav-item active" data-nav="overview" onclick="navigate('overview')">
-      <i class="ti ti-layout-dashboard"></i> Overview
+<!-- ══ Body layout ═════════════════════════════════════════════════════════ -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-section">Dashboard</div>
+    <div class="nav-item active" data-section="overview" onclick="nav(this)">
+      <i class="ti ti-layout-dashboard"></i>Overview
     </div>
-  </div>
-
-  <div class="nav-section">
-    <div class="nav-label">Income Streams</div>
-
-    <!-- Etsy group -->
-    <div class="nav-group">
-      <div class="nav-group-header" data-group="etsy" onclick="toggleGroup('etsy')">
-        <i class="ti ti-shopping-bag"></i> Etsy
-        <span class="arrow"><i class="ti ti-chevron-right"></i></span>
-      </div>
-      <div class="nav-group-children" id="group-etsy">
-        <div class="nav-child" data-nav="etsy" onclick="navigate('etsy')">
-          <i class="ti ti-layout-dashboard"></i> Overview
-        </div>
-        <div class="nav-child" data-nav="designs-etsy" onclick="navigate('designs-etsy')">
-          <i class="ti ti-photo"></i> Designs
-        </div>
-      </div>
+    <div class="sidebar-section">Income</div>
+    <div class="nav-item" data-section="streams" onclick="nav(this)">
+      <i class="ti ti-coins"></i>Income Streams
     </div>
-
-    <!-- Fiverr group -->
-    <div class="nav-group">
-      <div class="nav-group-header" data-group="fiverr" onclick="toggleGroup('fiverr')">
-        <i class="ti ti-brand-fiverr"></i> Fiverr
-        <span class="arrow"><i class="ti ti-chevron-right"></i></span>
-      </div>
-      <div class="nav-group-children" id="group-fiverr">
-        <div class="nav-child" data-nav="fiverr" onclick="navigate('fiverr')">
-          <i class="ti ti-layout-dashboard"></i> Overview
-        </div>
-        <div class="nav-child" data-nav="designs-fiverr" onclick="navigate('designs-fiverr')">
-          <i class="ti ti-photo"></i> Designs
-        </div>
+    <div class="sidebar-section">Operations</div>
+    <div class="nav-item" data-section="pipeline" onclick="nav(this)">
+      <i class="ti ti-robot"></i>Pipeline
+    </div>
+    <div class="nav-item" data-section="intelligence" onclick="nav(this)">
+      <i class="ti ti-brain"></i>Intelligence
+    </div>
+    <div class="sidebar-section">AI</div>
+    <div class="nav-item" data-section="orchestrator" onclick="nav(this)">
+      <i class="ti ti-message-dots"></i>Orchestrator
+    </div>
+    <div class="sidebar-footer">
+      <div style="font-size:10px;color:var(--text3);text-align:center" id="sched-status">
+        Scheduler <span id="sched-dot" style="color:var(--text3)">●</span>
       </div>
     </div>
-  </div>
+  </nav>
 
-  <div class="nav-section">
-    <div class="nav-label">Operations</div>
+  <!-- Main content -->
+  <main class="content">
 
-    <!-- Pipeline group -->
-    <div class="nav-group">
-      <div class="nav-group-header" data-group="pipeline" onclick="toggleGroup('pipeline')">
-        <i class="ti ti-cpu"></i> Pipeline
-        <span class="arrow"><i class="ti ti-chevron-right"></i></span>
+    <!-- ── Overview ───────────────────────────────────────────────────────── -->
+    <section class="section active" id="s-overview">
+      <h2 class="page-title"><i class="ti ti-layout-dashboard"></i>Overview</h2>
+      <div class="stats-grid" id="ov-stats">
+        <div class="stat-tile"><div class="stat-label">Week Revenue</div><div class="stat-val" id="ov-rev">—</div></div>
+        <div class="stat-tile"><div class="stat-label">Week Net</div><div class="stat-val" id="ov-net">—</div></div>
+        <div class="stat-tile"><div class="stat-label">API Spend</div><div class="stat-val" id="ov-spend">—</div><div class="stat-sub" id="ov-spend-sub"></div></div>
+        <div class="stat-tile"><div class="stat-label">Active Listings</div><div class="stat-val" id="ov-listings">—</div></div>
+        <div class="stat-tile"><div class="stat-label">Approved Designs</div><div class="stat-val" id="ov-approved">—</div><div class="stat-sub">ready to publish</div></div>
+        <div class="stat-tile"><div class="stat-label">Generated Today</div><div class="stat-val" id="ov-generated">—</div></div>
       </div>
-      <div class="nav-group-children" id="group-pipeline">
-        <div class="nav-child" data-nav="pipeline-etsy" onclick="navigate('pipeline-etsy')">
-          <i class="ti ti-shopping-bag"></i> Etsy
-        </div>
-        <div class="nav-child" data-nav="pipeline-fiverr" onclick="navigate('pipeline-fiverr')">
-          <i class="ti ti-brand-fiverr"></i> Fiverr
-        </div>
-        <div class="nav-child" data-nav="pipeline-system" onclick="navigate('pipeline-system')">
-          <i class="ti ti-settings"></i> System
-        </div>
+      <div class="quick-actions">
+        <button class="btn btn-acc" onclick="runAgent('research')"><i class="ti ti-search"></i>Run Research</button>
+        <button class="btn btn-ghost" onclick="runAgent('design')"><i class="ti ti-palette"></i>Run Design</button>
+        <button class="btn btn-ghost" onclick="runAgent('scout')"><i class="ti ti-telescope"></i>Run Scout</button>
+        <button class="btn btn-ghost" onclick="runAgent('memory')"><i class="ti ti-database"></i>Run Memory</button>
       </div>
-    </div>
-
-    <!-- Scout group -->
-    <div class="nav-group">
-      <div class="nav-group-header" data-group="scout" onclick="toggleGroup('scout')">
-        <i class="ti ti-telescope"></i> Scout
-        <span class="arrow"><i class="ti ti-chevron-right"></i></span>
-      </div>
-      <div class="nav-group-children" id="group-scout">
-        <div class="nav-child" data-nav="scout-main" onclick="navigate('scout-main')">
-          <i class="ti ti-world"></i> Main
-        </div>
-        <div class="nav-child" data-nav="scout-fiverr" onclick="navigate('scout-fiverr')">
-          <i class="ti ti-brand-fiverr"></i> Fiverr
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="nav-section">
-    <div class="nav-label">Intelligence</div>
-    <div class="nav-item" data-nav="memory" onclick="navigate('memory')">
-      <i class="ti ti-brain"></i> Memory
-    </div>
-    <div class="nav-item" data-nav="finance" onclick="navigate('finance')">
-      <i class="ti ti-report-money"></i> Finance
-    </div>
-    <div class="nav-item" data-nav="orchestrator" onclick="navigate('orchestrator')">
-      <i class="ti ti-message-dots"></i> Orchestrator
-    </div>
-  </div>
-</nav>
-
-<!-- ══════════════════ MAIN CONTENT ══════════════════ -->
-<div class="main">
-  <div class="topbar">
-    <div>
-      <div class="topbar-title" id="topbar-title">Overview</div>
-    </div>
-    <div class="topbar-actions">
-      <button class="btn btn-ghost btn-sm" onclick="refreshCurrent()"><i class="ti ti-refresh"></i> Refresh</button>
-      <button class="btn btn-accent btn-sm" onclick="navigate('orchestrator')"><i class="ti ti-message-dots"></i> Ask AI</button>
-    </div>
-  </div>
-
-  <div class="content">
-
-    <!-- ── OVERVIEW ─────────────────────────────────────────────────── -->
-    <div id="view-overview" class="view active">
-      <div class="section-header">
-        <div><h2>Overview</h2><p>Real-time system snapshot</p></div>
-      </div>
-      <div class="stats-grid" id="overview-stats">
-        <div class="stat-card"><div class="stat-label">Week Revenue</div><div class="stat-value accent" id="ov-revenue">$0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Week Net Profit</div><div class="stat-value" id="ov-net">$0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Monthly API Spend</div>
-          <div class="stat-value" id="ov-spend">$0.00</div>
-          <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" id="ov-spend-bar" style="width:0%"></div></div>
-          <div class="stat-sub"><span id="ov-spend-sub">of $10 cap</span></div>
-        </div>
-        <div class="stat-card"><div class="stat-label">Active Listings</div><div class="stat-value" id="ov-listings">0</div></div>
-        <div class="stat-card"><div class="stat-label">Designs Today</div><div class="stat-value" id="ov-designed">0</div></div>
-        <div class="stat-card"><div class="stat-label">Approved Today</div><div class="stat-value" id="ov-approved">0</div><div class="stat-sub" id="ov-rate"></div></div>
-      </div>
-
-      <div class="grid-2" style="margin-bottom:20px">
-        <div class="card">
-          <div class="card-title"><i class="ti ti-shopping-bag"></i> Etsy</div>
-          <div id="ov-etsy-content"><div class="empty-state"><i class="ti ti-loader ti-spin"></i><p>Loading...</p></div></div>
-        </div>
-        <div class="card">
-          <div class="card-title"><i class="ti ti-brand-fiverr"></i> Fiverr</div>
-          <div id="ov-fiverr-content"><div class="empty-state"><i class="ti ti-loader ti-spin"></i><p>Loading...</p></div></div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Recent Alerts</div>
-          <div id="ov-alerts"><div class="empty-state"><p>No alerts yet</p></div></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Quick Actions</div>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            <button class="btn btn-ghost" onclick="runAndStream('research','etsy')"><i class="ti ti-search"></i> Run Etsy Research</button>
-            <button class="btn btn-ghost" onclick="runAndStream('design')"><i class="ti ti-photo"></i> Run Design Agent</button>
-            <button class="btn btn-ghost" onclick="runAndStream('scout')"><i class="ti ti-telescope"></i> Run Scout</button>
-            <button class="btn btn-ghost" onclick="runAndStream('memory')"><i class="ti ti-brain"></i> Run Memory Agent</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── ETSY ───────────────────────────────────────────────────── -->
-    <div id="view-etsy" class="view">
-      <div class="section-header"><div><h2>Etsy</h2><p>Print-on-demand mug store</p></div>
-        <span class="badge badge-yellow" id="etsy-status-badge">Setting Up</span>
-      </div>
-      <div class="stats-grid" id="etsy-stats-grid">
-        <div class="stat-card"><div class="stat-label">Active Listings</div><div class="stat-value" id="etsy-active">--</div></div>
-        <div class="stat-card"><div class="stat-label">Drafts</div><div class="stat-value" id="etsy-drafts">--</div></div>
-        <div class="stat-card"><div class="stat-label">Revenue This Week</div><div class="stat-value accent" id="etsy-rev">--</div></div>
-        <div class="stat-card"><div class="stat-label">Orders This Week</div><div class="stat-value" id="etsy-orders">--</div></div>
-        <div class="stat-card"><div class="stat-label">Avg Net / Sale</div><div class="stat-value" id="etsy-avg-net">--</div></div>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Recent Research Briefs</div>
-          <div id="etsy-briefs"><div class="empty-state"><i class="ti ti-file-text"></i><p>No briefs yet — run Research</p></div></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Etsy Pipeline Controls</div>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            <button class="btn btn-ghost" onclick="runAndStream('research','etsy')"><i class="ti ti-search"></i> Run Etsy Research</button>
-            <button class="btn btn-ghost" onclick="runAndStream('design')"><i class="ti ti-photo"></i> Run Design Agent</button>
-            <button class="btn btn-ghost" onclick="runAndStream('qa')"><i class="ti ti-shield-check"></i> Run QA Agent</button>
-            <button class="btn btn-ghost" onclick="runAndStream('publisher')"><i class="ti ti-upload"></i> Run Publisher</button>
-            <button class="btn btn-ghost" onclick="runAndStream('performance')"><i class="ti ti-chart-line"></i> Run Performance Agent</button>
-          </div>
-          <div id="etsy-log" class="log-stream" style="margin-top:12px;display:none"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── FIVERR ──────────────────────────────────────────────────── -->
-    <div id="view-fiverr" class="view">
-      <div class="section-header"><div><h2>Fiverr</h2><p>YouTube thumbnail gig</p></div>
-        <span class="badge badge-green" id="fiverr-status-badge">Active</span>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Orders This Week</div><div class="stat-value accent" id="fv-orders">--</div></div>
-        <div class="stat-card"><div class="stat-label">Revenue This Week</div><div class="stat-value" id="fv-rev">--</div></div>
-        <div class="stat-card"><div class="stat-label">Avg Rating</div><div class="stat-value" id="fv-rating">--</div></div>
-        <div class="stat-card"><div class="stat-label">Pending Orders</div><div class="stat-value" id="fv-pending">--</div></div>
-        <div class="stat-card"><div class="stat-label">Delivered Total</div><div class="stat-value" id="fv-delivered">--</div></div>
-      </div>
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-title">Recent Orders</div>
-        <div class="table-wrap">
-          <table id="fiverr-orders-table">
-            <thead><tr><th>Order ID</th><th>Date</th><th>Amount</th><th>Net Profit</th></tr></thead>
-            <tbody id="fiverr-orders-body"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">No orders yet</td></tr></tbody>
-          </table>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">Scheduler Status</div>
+        <div class="conditions-mini" id="ov-conditions">
+          <div class="loading"><span class="spinner"></span>Loading...</div>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Fiverr Pipeline Controls</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          <button class="btn btn-ghost" onclick="runAndStream('research','fiverr')"><i class="ti ti-search"></i> Run Fiverr Research</button>
-          <button class="btn btn-ghost" onclick="runAndStream('fiverr_orders')"><i class="ti ti-mail"></i> Check Orders</button>
-          <button class="btn btn-ghost" onclick="runAndStream('fiverr_reviews')"><i class="ti ti-star"></i> Check Reviews</button>
-          <button class="btn btn-ghost" onclick="runAndStream('fiverr_scout')"><i class="ti ti-telescope"></i> Run Fiverr Scout</button>
-          <button class="btn btn-ghost" onclick="runAndStream('fiverr_test')"><i class="ti ti-flask"></i> Test Mock Order</button>
-        </div>
-        <div id="fiverr-log" class="log-stream" style="margin-top:12px;display:none"></div>
-      </div>
-    </div>
-
-    <!-- ── PIPELINE: ETSY ─────────────────────────────────────────── -->
-    <div id="view-pipeline-etsy" class="view">
-      <div class="section-header"><div><h2>Pipeline — Etsy</h2><p>Etsy research, design, QA, and publishing agents</p></div></div>
-      <div class="agent-grid">
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Research Agent</div>
-          <div class="agent-meta">Scrapes Etsy niches, generates briefs via Claude</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-etsy-log','research','etsy')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Design Agent</div>
-          <div class="agent-meta">Generates mug designs via gpt-image-1 with inline QA loop</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-etsy-log','design')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>QA Agent</div>
-          <div class="agent-meta">GPT-4o vision review on all generated designs</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-etsy-log','qa')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Publisher Agent</div>
-          <div class="agent-meta">Pushes approved designs to Etsy via Printify</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-etsy-log','publisher')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Performance Agent</div>
-          <div class="agent-meta">Optimizes listing titles and tags (Tue/Thu 11am)</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-etsy-log','performance')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Cleanup</div>
-          <div class="agent-meta">Removes rejected/published files and orphaned designs with no DB record</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-etsy-log','cleanup')"><i class="ti ti-trash"></i> Full Cleanup</button>
-            <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-etsy-log','cleanup_orphans')"><i class="ti ti-ghost"></i> Orphans Only</button>
+        <div class="card-title">Income Streams</div>
+        <div class="two-col">
+          <div class="card-sm">
+            <div class="stream-header"><i class="ti ti-brand-etsy" style="color:#f56400;font-size:18px"></i><h3>Etsy</h3><span class="badge badge-yellow" id="ov-etsy-status">Setting Up</span></div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text2)" id="ov-etsy-summary">Loading...</div>
+          </div>
+          <div class="card-sm">
+            <div class="stream-header"><i class="ti ti-brand-fiverr" style="color:#1dbf73;font-size:18px"></i><h3>Fiverr</h3><span class="badge badge-yellow" id="ov-fiverr-status">Setting Up</span></div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text2)" id="ov-fiverr-summary">Loading...</div>
           </div>
         </div>
       </div>
-      <div class="card"><div class="card-title">Live Log</div><div id="pipe-etsy-log" class="log-stream"></div></div>
-    </div>
+    </section>
 
-    <!-- ── PIPELINE: FIVERR ───────────────────────────────────────── -->
-    <div id="view-pipeline-fiverr" class="view">
-      <div class="section-header"><div><h2>Pipeline — Fiverr</h2><p>Fiverr order fulfillment and scouting agents</p></div></div>
-      <div class="agent-grid">
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Research Agent (Fiverr)</div>
-          <div class="agent-meta">Scrapes Fiverr niches for thumbnail demand</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-fiverr-log','research','fiverr')"><i class="ti ti-player-play"></i> Run</button>
+    <!-- ── Income Streams ─────────────────────────────────────────────────── -->
+    <section class="section" id="s-streams">
+      <h2 class="page-title"><i class="ti ti-coins"></i>Income Streams</h2>
+      <div class="two-col">
+        <!-- Etsy column -->
+        <div class="stream-col">
+          <div class="card-sm">
+            <div class="stream-header"><i class="ti ti-brand-etsy" style="color:#f56400;font-size:20px"></i><h3>Etsy</h3></div>
+            <div class="stats-grid" style="margin-top:10px" id="etsy-stats-grid">
+              <div class="stat-tile"><div class="stat-label">Active Listings</div><div class="stat-val" id="etsy-active">—</div></div>
+              <div class="stat-tile"><div class="stat-label">Revenue / Week</div><div class="stat-val" id="etsy-rev">—</div></div>
+              <div class="stat-tile"><div class="stat-label">Orders / Week</div><div class="stat-val" id="etsy-orders">—</div></div>
+              <div class="stat-tile"><div class="stat-label">Avg Net / Sale</div><div class="stat-val" id="etsy-avg">—</div></div>
+            </div>
+          </div>
+          <div class="card-sm">
+            <div class="section-sub-title">
+              <span>Designs</span>
+              <div class="tabs" style="margin:0">
+                <button class="tab active" onclick="filterDesigns('etsy','all',this)">All</button>
+                <button class="tab" onclick="filterDesigns('etsy','approved',this)">Approved</button>
+                <button class="tab" onclick="filterDesigns('etsy','rejected',this)">Rejected</button>
+                <button class="tab" onclick="filterDesigns('etsy','published',this)">Published</button>
+              </div>
+            </div>
+            <div id="etsy-design-stats" style="font-size:11px;color:var(--text3);margin-bottom:8px"></div>
+            <div class="design-grid" id="etsy-designs"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+          </div>
+          <div class="card-sm">
+            <div class="card-title">Controls</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('research')"><i class="ti ti-search"></i>Research</button>
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('design')"><i class="ti ti-palette"></i>Design</button>
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('qa')"><i class="ti ti-check"></i>QA</button>
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('publisher')"><i class="ti ti-upload"></i>Publish</button>
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('performance')"><i class="ti ti-chart-line"></i>Performance</button>
+            </div>
+          </div>
         </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Check Orders</div>
-          <div class="agent-meta">IMAP check for new Fiverr order emails</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-fiverr-log','fiverr_orders')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Check Reviews</div>
-          <div class="agent-meta">Parses review notification emails, logs to memory</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-fiverr-log','fiverr_reviews')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Fiverr Scout</div>
-          <div class="agent-meta">Finds adjacent gig opportunities (Sun 7:15am)</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-fiverr-log','fiverr_scout')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Test Mock Order</div>
-          <div class="agent-meta">Generates a mock thumbnail to test the pipeline</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-fiverr-log','fiverr_test')"><i class="ti ti-flask"></i> Run</button>
-        </div>
-      </div>
-      <div class="card"><div class="card-title">Live Log</div><div id="pipe-fiverr-log" class="log-stream"></div></div>
-    </div>
-
-    <!-- ── PIPELINE: SYSTEM ───────────────────────────────────────── -->
-    <div id="view-pipeline-system" class="view">
-      <div class="section-header"><div><h2>Pipeline — System</h2><p>Intelligence, memory, and reporting agents</p></div></div>
-      <div class="agent-grid">
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Memory Agent</div>
-          <div class="agent-meta">Writes daily observations to memory table (10pm)</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-sys-log','memory')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Anomaly Detector</div>
-          <div class="agent-meta">Checks 7 performance thresholds, sends alerts (11pm)</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-sys-log','anomaly')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Prompt Evolution</div>
-          <div class="agent-meta">Self-improves design variation angles when QA drops</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-sys-log','prompt_evolution')"><i class="ti ti-player-play"></i> Run (dry-run)</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Reporting Agent</div>
-          <div class="agent-meta">Weekly P&amp;L email every Sunday 9am</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-sys-log','reporting')"><i class="ti ti-player-play"></i> Run</button>
-        </div>
-        <div class="agent-card">
-          <div class="agent-name"><span class="dot dot-gray"></span>Scout Agent</div>
-          <div class="agent-meta">Finds new income stream opportunities (Sunday 7am)</div>
-          <button class="btn btn-ghost btn-sm" onclick="runAgentStream('pipe-sys-log','scout')"><i class="ti ti-player-play"></i> Run (mock)</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Recent Jobs</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Type</th><th>Platform</th><th>Status</th><th>Created</th></tr></thead>
-            <tbody id="jobs-table-body"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Loading...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="card" style="margin-top:16px"><div class="card-title">Live Log</div><div id="pipe-sys-log" class="log-stream"></div></div>
-    </div>
-
-    <!-- ── DESIGNS: ETSY ──────────────────────────────────────────── -->
-    <div id="view-designs-etsy" class="view">
-      <div class="section-header"><div><h2>Etsy Designs</h2><p>Flat mug artwork generated for Etsy/Printify</p></div>
-        <button class="btn btn-ghost btn-sm" onclick="loadEtsyDesigns()"><i class="ti ti-refresh"></i> Refresh</button>
-      </div>
-      <div class="stat-bar" id="etsy-design-statbar">
-        <div class="stat-bar-item"><div class="sbi-val" id="eds-gen">--</div><div class="sbi-label">Generated Today</div></div>
-        <div class="stat-bar-item"><div class="sbi-val" id="eds-appr" style="color:var(--green)">--</div><div class="sbi-label">Approved Today</div></div>
-        <div class="stat-bar-item"><div class="sbi-val" id="eds-rej" style="color:var(--red)">--</div><div class="sbi-label">Rejected Today</div></div>
-        <div class="stat-bar-item"><div class="sbi-val" id="eds-pub">--</div><div class="sbi-label">Published Total</div></div>
-        <div class="stat-bar-item"><div class="sbi-val" id="eds-rate" style="color:var(--accent)">--%</div><div class="sbi-label">Approval Rate</div></div>
-      </div>
-      <div class="tabs" id="etsy-design-tabs">
-        <div class="tab active" onclick="filterEtsyDesigns('all',this)">All</div>
-        <div class="tab" onclick="filterEtsyDesigns('approved',this)">Approved</div>
-        <div class="tab" onclick="filterEtsyDesigns('rejected',this)">Rejected</div>
-        <div class="tab" onclick="filterEtsyDesigns('published',this)">Published</div>
-        <div class="tab" onclick="filterEtsyDesigns('generated',this)">Pending QA</div>
-      </div>
-      <div id="etsy-designs-grid" class="design-grid">
-        <div class="empty-state" style="grid-column:1/-1"><i class="ti ti-loader ti-spin"></i><p>Loading designs...</p></div>
-      </div>
-    </div>
-
-    <!-- ── DESIGNS: FIVERR ────────────────────────────────────────── -->
-    <div id="view-designs-fiverr" class="view">
-      <div class="section-header"><div><h2>Fiverr Designs</h2><p>YouTube thumbnail orders fulfilled</p></div>
-        <button class="btn btn-ghost btn-sm" onclick="loadFiverrDesigns()"><i class="ti ti-refresh"></i> Refresh</button>
-      </div>
-      <div class="stat-bar">
-        <div class="stat-bar-item"><div class="sbi-val" id="fds-week">--</div><div class="sbi-label">Orders This Week</div></div>
-        <div class="stat-bar-item"><div class="sbi-val" id="fds-total" style="color:var(--green)">--</div><div class="sbi-label">Delivered Total</div></div>
-        <div class="stat-bar-item"><div class="sbi-val" id="fds-pending" style="color:var(--yellow)">--</div><div class="sbi-label">Pending Delivery</div></div>
-        <div class="stat-bar-item"><div class="sbi-val" id="fds-avg">--</div><div class="sbi-label">Avg Attempts/Order</div></div>
-      </div>
-      <div class="tabs">
-        <div class="tab active" onclick="filterFiverrDesigns('all',this)">All</div>
-        <div class="tab" onclick="filterFiverrDesigns('approved',this)">Ready to Deliver</div>
-        <div class="tab" onclick="filterFiverrDesigns('published',this)">Delivered</div>
-        <div class="tab" onclick="filterFiverrDesigns('rejected',this)">Rejected</div>
-      </div>
-      <div id="fiverr-designs-grid" class="design-grid">
-        <div class="empty-state" style="grid-column:1/-1"><i class="ti ti-loader ti-spin"></i><p>Loading designs...</p></div>
-      </div>
-    </div>
-
-    <!-- ── SCOUT: MAIN ────────────────────────────────────────────── -->
-    <div id="view-scout-main" class="view">
-      <div class="section-header"><div><h2>Scout — Main</h2><p>New income stream proposals from multi-source scraping</p></div>
-        <button class="btn btn-ghost btn-sm" onclick="runAgentStream('scout-main-log','scout')"><i class="ti ti-player-play"></i> Run Scout</button>
-      </div>
-      <div class="tabs">
-        <div class="tab active" onclick="filterProposals('main','pending',this)">Pending</div>
-        <div class="tab" onclick="filterProposals('main','approved',this)">Approved</div>
-        <div class="tab" onclick="filterProposals('main','ignored',this)">Ignored</div>
-        <div class="tab" onclick="filterProposals('main','launched',this)">Launched</div>
-      </div>
-      <div id="scout-main-proposals"></div>
-      <div class="card" style="margin-top:12px"><div class="card-title">Scout Log</div><div id="scout-main-log" class="log-stream" style="height:180px"></div></div>
-    </div>
-
-    <!-- ── SCOUT: FIVERR ──────────────────────────────────────────── -->
-    <div id="view-scout-fiverr" class="view">
-      <div class="section-header"><div><h2>Scout — Fiverr Expansion</h2><p>Adjacent Fiverr gig opportunities</p></div>
-        <button class="btn btn-ghost btn-sm" onclick="runAgentStream('scout-fiverr-log','fiverr_scout')"><i class="ti ti-player-play"></i> Run Fiverr Scout</button>
-      </div>
-      <div class="tabs">
-        <div class="tab active" onclick="filterProposals('fiverr','pending',this)">Pending</div>
-        <div class="tab" onclick="filterProposals('fiverr','approved',this)">Approved</div>
-        <div class="tab" onclick="filterProposals('fiverr','ignored',this)">Ignored</div>
-        <div class="tab" onclick="filterProposals('fiverr','launched',this)">Launched</div>
-      </div>
-      <div id="scout-fiverr-proposals"></div>
-      <div class="card" style="margin-top:12px"><div class="card-title">Scout Log</div><div id="scout-fiverr-log" class="log-stream" style="height:180px"></div></div>
-    </div>
-
-    <!-- ── MEMORY ────────────────────────────────────────────────── -->
-    <div id="view-memory" class="view">
-      <div class="section-header"><div><h2>System Memory</h2><p>Learned patterns, pass rates, and niche signals</p></div></div>
-      <div class="tabs">
-        <div class="tab active" onclick="filterMemory('',this)">All</div>
-        <div class="tab" onclick="filterMemory('design_quality',this)">Design Quality</div>
-        <div class="tab" onclick="filterMemory('niche_performance',this)">Niche Perf</div>
-        <div class="tab" onclick="filterMemory('platform_health',this)">Platform Health</div>
-        <div class="tab" onclick="filterMemory('agent_reliability',this)">Agent Reliability</div>
-        <div class="tab" onclick="filterMemory('prompt_performance',this)">Prompt Perf</div>
-        <div class="tab" onclick="filterMemory('scout_findings',this)">Scout</div>
-      </div>
-      <div id="memory-cards"></div>
-    </div>
-
-    <!-- ── FINANCE ────────────────────────────────────────────────── -->
-    <div id="view-finance" class="view">
-      <div class="section-header"><div><h2>Finance</h2><p>P&amp;L, API costs, and expenses</p></div></div>
-      <div class="grid-3" style="margin-bottom:20px">
-        <div class="card" id="finance-weekly">
-          <div class="card-title">This Week</div>
-          <div class="empty-state"><i class="ti ti-loader ti-spin"></i><p>Loading...</p></div>
-        </div>
-        <div class="card" id="finance-alltime">
-          <div class="card-title">All-Time</div>
-          <div class="empty-state"><i class="ti ti-loader ti-spin"></i><p>Loading...</p></div>
-        </div>
-        <div class="card" id="finance-spend">
-          <div class="card-title">Monthly API Spend</div>
-          <div class="empty-state"><i class="ti ti-loader ti-spin"></i><p>Loading...</p></div>
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">API Cost by Agent</div>
-          <div id="finance-by-agent"><div class="empty-state"><p>No cost data yet</p></div></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Expenses Log</div>
-          <div id="finance-expenses"><div class="empty-state"><p>Loading...</p></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── ORCHESTRATOR ───────────────────────────────────────────── -->
-    <div id="view-orchestrator" class="view">
-      <div class="section-header"><div><h2>Orchestrator</h2><p>Ask the AI system anything about its current state</p></div></div>
-      <div class="card" style="margin-bottom:16px" id="orch-state-card">
-        <div class="card-title">System State</div>
-        <div id="orch-state" style="font-size:12px;color:var(--text2)">Loading system state...</div>
-      </div>
-      <div class="card">
-        <div class="chat-wrap">
-          <div class="chat-history" id="chat-history"></div>
-          <div class="chat-input-row">
-            <input type="text" id="chat-input" placeholder="Ask the orchestrator... (Enter to send)" onkeydown="if(event.key==='Enter')sendChat()">
-            <button class="btn btn-accent" onclick="sendChat()"><i class="ti ti-send"></i></button>
+        <!-- Fiverr column -->
+        <div class="stream-col">
+          <div class="card-sm">
+            <div class="stream-header"><i class="ti ti-brand-fiverr" style="color:#1dbf73;font-size:20px"></i><h3>Fiverr</h3></div>
+            <div class="stats-grid" style="margin-top:10px">
+              <div class="stat-tile"><div class="stat-label">Delivered Total</div><div class="stat-val" id="fv-delivered">—</div></div>
+              <div class="stat-tile"><div class="stat-label">Orders / Week</div><div class="stat-val" id="fv-orders">—</div></div>
+              <div class="stat-tile"><div class="stat-label">Revenue / Week</div><div class="stat-val" id="fv-rev">—</div></div>
+              <div class="stat-tile"><div class="stat-label">Avg Rating</div><div class="stat-val" id="fv-rating">—</div></div>
+            </div>
+          </div>
+          <div class="card-sm">
+            <div class="section-sub-title">
+              <span>Designs</span>
+              <div class="tabs" style="margin:0">
+                <button class="tab active" onclick="filterDesigns('fiverr','all',this)">All</button>
+                <button class="tab" onclick="filterDesigns('fiverr','approved',this)">Ready</button>
+                <button class="tab" onclick="filterDesigns('fiverr','published',this)">Delivered</button>
+              </div>
+            </div>
+            <div class="design-grid" id="fiverr-designs"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+          </div>
+          <div class="card-sm">
+            <div class="card-title">Controls</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_orders')"><i class="ti ti-mail"></i>Check Orders</button>
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_reviews')"><i class="ti ti-star"></i>Check Reviews</button>
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_scout')"><i class="ti ti-telescope"></i>Fiverr Scout</button>
+              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_test')"><i class="ti ti-test-pipe"></i>Test Order</button>
+            </div>
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ── Pipeline ───────────────────────────────────────────────────────── -->
+    <section class="section" id="s-pipeline">
+      <h2 class="page-title"><i class="ti ti-robot"></i>Pipeline</h2>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">Scheduler Conditions</div>
+        <div id="cond-full-table"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">All Agents</div>
+        <div class="agent-grid" id="agent-grid">
+          <!-- filled by JS -->
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Live Log</div>
+        <div class="log-panel" id="live-log"></div>
+      </div>
+    </section>
+
+    <!-- ── Intelligence ───────────────────────────────────────────────────── -->
+    <section class="section" id="s-intelligence">
+      <h2 class="page-title"><i class="ti ti-brain"></i>Intelligence</h2>
+      <!-- Scout -->
+      <div class="section-sub">
+        <div class="section-sub-title">
+          <span><i class="ti ti-telescope"></i> Scout Proposals</span>
+          <div class="tabs" style="margin:0">
+            <button class="tab active" onclick="filterProposals('pending',this)">Pending</button>
+            <button class="tab" onclick="filterProposals('approved',this)">Approved</button>
+            <button class="tab" onclick="filterProposals('ignored',this)">Ignored</button>
+          </div>
+        </div>
+        <div id="proposals-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+      </div>
+      <hr class="divider">
+      <!-- Memory -->
+      <div class="section-sub">
+        <div class="section-sub-title">
+          <span><i class="ti ti-database"></i> System Memory</span>
+          <select id="mem-cat-filter" onchange="loadMemory()" style="background:var(--s3);border:1px solid var(--s4);color:var(--text2);padding:3px 6px;border-radius:4px;font-size:11px">
+            <option value="">All categories</option>
+            <option value="design_quality">Design Quality</option>
+            <option value="niche_performance">Niche Performance</option>
+            <option value="platform_health">Platform Health</option>
+            <option value="agent_reliability">Agent Reliability</option>
+            <option value="prompt_performance">Prompt Performance</option>
+            <option value="scout_findings">Scout Findings</option>
+          </select>
+        </div>
+        <div id="memory-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+      </div>
+      <hr class="divider">
+      <!-- Finance -->
+      <div class="section-sub">
+        <div class="section-sub-title"><span><i class="ti ti-currency-dollar"></i> Finance</span></div>
+        <div class="three-col" id="finance-tiles" style="margin-bottom:14px">
+          <div class="stat-tile"><div class="stat-label">This Week Revenue</div><div class="stat-val" id="fin-wrev">—</div></div>
+          <div class="stat-tile"><div class="stat-label">This Week Net</div><div class="stat-val" id="fin-wnet">—</div></div>
+          <div class="stat-tile"><div class="stat-label">All-time Net</div><div class="stat-val" id="fin-atnet">—</div></div>
+          <div class="stat-tile"><div class="stat-label">Month Spend</div><div class="stat-val" id="fin-mspend">—</div><div class="stat-sub"><div class="progress-wrap" style="margin-top:4px"><div class="progress-fill acc" id="fin-spend-bar" style="width:0%"></div></div></div></div>
+          <div class="stat-tile"><div class="stat-label">Spend Cap</div><div class="stat-val" id="fin-cap">—</div></div>
+          <div class="stat-tile"><div class="stat-label">Recovery</div><div class="stat-val" id="fin-recover">—</div><div class="stat-sub" id="fin-recover-sub"></div></div>
+        </div>
+        <div class="two-col">
+          <div>
+            <div class="card-title">Cost by Agent</div>
+            <div id="fin-by-agent"></div>
+          </div>
+          <div>
+            <div class="card-title">Expenses Log</div>
+            <div id="fin-expenses"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Orchestrator ────────────────────────────────────────────────────── -->
+    <section class="section" id="s-orchestrator">
+      <h2 class="page-title"><i class="ti ti-message-dots"></i>Orchestrator</h2>
+      <div class="card" style="margin-bottom:10px;padding:10px 14px;font-size:11px;color:var(--text2)" id="orch-state-bar">
+        Loading system state…
+      </div>
+      <div class="chat-wrap">
+        <div class="chat-history" id="chat-history"></div>
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chat-input" placeholder="Ask the orchestrator anything…" onkeydown="chatKey(event)"></textarea>
+          <button class="btn btn-acc" onclick="sendChat()" id="chat-send"><i class="ti ti-send"></i>Send</button>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- /content -->
+
+  <!-- Activity panel -->
+  <aside class="activity-panel">
+    <div class="activity-header">
+      <span>LIVE ACTIVITY</span>
+      <span style="font-size:10px;color:var(--text3)" id="act-count">—</span>
     </div>
+    <div class="activity-list" id="activity-list">
+      <div class="act-empty">No activity yet</div>
+    </div>
+  </aside>
 
-  </div><!-- /content -->
-</div><!-- /main -->
+</div><!-- /layout -->
 
-<!-- ══════════════════ STATUS BAR ══════════════════ -->
-<div id="statusbar">
-  <span class="sb-label">System</span>
-  <div class="sb-pills" id="sb-pills"></div>
-  <div class="sb-center" id="sb-center"></div>
-  <div class="sb-right">
-    <span id="sb-spend-text" style="color:var(--text2)">$0.00</span>
-    <div class="sb-spend-bar"><div class="sb-spend-fill" id="sb-spend-fill" style="width:0%"></div></div>
-    <span id="sb-cap-text" style="color:var(--text3)">/ $10</span>
-  </div>
+<!-- Task strip -->
+<div class="task-strip" id="task-strip">
+  <div class="strip-idle" id="strip-idle"><i class="ti ti-circle-check" style="color:var(--green)"></i>All agents idle</div>
 </div>
 
-<!-- Lightbox -->
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
-  <button class="lb-close" onclick="closeLightbox()">&times;</button>
-  <img id="lightbox-img" src="" alt="">
-</div>
+</div><!-- /app -->
 
-<!-- ══════════════════ SCRIPTS ══════════════════ -->
+<!-- Notification dropdown backdrop -->
+<div id="notif-backdrop" style="display:none;position:fixed;inset:0;z-index:150" onclick="closeNotifDropdown()"></div>
+
 <script>
-// ─── State ───────────────────────────────────────────────────────────────────
-let currentView = 'overview';
-let chatHistory = [];
-let allEtsyDesigns   = [];
-let allFiverrDesigns = [];
-let currentEtsyFilter   = 'all';
-let currentFiverrFilter = 'all';
-let currentProposalStatus = { main: 'pending', fiverr: 'pending' };
-let activeEventSource = null;
+/* ══════════════════════════════════════════════════════════════════════════
+   Agentic Income Engine Dashboard — v3.0
+   5-section SPA: Overview | Income Streams | Pipeline | Intelligence | Orchestrator
+   ══════════════════════════════════════════════════════════════════════════ */
 
-const PARENT_MAP = {
-  'pipeline-etsy':    'pipeline',
-  'pipeline-fiverr':  'pipeline',
-  'pipeline-system':  'pipeline',
-  'designs-etsy':     'etsy',
-  'designs-fiverr':   'fiverr',
-  'scout-main':       'scout',
-  'scout-fiverr':     'scout',
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  section: 'overview',
+  etsyDesigns: [], fiverrDesigns: [],
+  conditions: {},
+  agentStatus: {},
+  proposals: [], proposalFilter: 'pending',
+  memory: [],
+  chatHistory: [],
+  notifCount: 0, notifRead: false,
+  taskCards: {}, // name → {el, start}
 };
 
-const VIEW_TITLES = {
-  'overview':         'Overview',
-  'etsy':             'Etsy',
-  'fiverr':           'Fiverr',
-  'pipeline-etsy':    'Pipeline — Etsy',
-  'pipeline-fiverr':  'Pipeline — Fiverr',
-  'pipeline-system':  'Pipeline — System',
-  'designs-etsy':     'Etsy Designs',
-  'designs-fiverr':   'Fiverr Designs',
-  'scout-main':       'Scout — Main',
-  'scout-fiverr':     'Scout — Fiverr',
-  'memory':           'Memory',
-  'finance':          'Finance',
-  'orchestrator':     'Orchestrator',
-};
+// ── Helpers ────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
 
-// ─── Clock ────────────────────────────────────────────────────────────────────
-function updateClock() {
-  const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// ─── Navigation ───────────────────────────────────────────────────────────────
-function navigate(id) {
-  // Hide all views
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-' + id)?.classList.add('active');
-
-  // Clear sidebar active states
-  document.querySelectorAll('.nav-item[data-nav], .nav-child[data-nav]').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-group-header').forEach(h => h.classList.remove('parent-active'));
-
-  // Activate correct sidebar item
-  const el = document.querySelector(`[data-nav="${id}"]`);
-  if (el) el.classList.add('active');
-
-  const parent = PARENT_MAP[id];
-  if (parent) {
-    const parentHeader = document.querySelector(`[data-group="${parent}"]`);
-    if (parentHeader) parentHeader.classList.add('parent-active', 'open');
-    openGroup(parent);
-  } else {
-    // If the target element is a nav-child, open its containing group
-    if (el && el.classList.contains('nav-child')) {
-      const groupChildren = el.closest('.nav-group-children');
-      if (groupChildren) {
-        groupChildren.classList.add('open');
-        const groupId = groupChildren.id.replace('group-', '');
-        const groupHeader = document.querySelector(`[data-group="${groupId}"]`);
-        if (groupHeader) groupHeader.classList.add('open');
-      }
-    }
-  }
-
-  document.getElementById('topbar-title').textContent = VIEW_TITLES[id] || id;
-  currentView = id;
-  loadView(id);
-}
-
-function toggleGroup(id) {
-  const header   = document.querySelector(`[data-group="${id}"]`);
-  const children = document.getElementById('group-' + id);
-  if (!header || !children) return;
-  const isOpen = children.classList.contains('open');
-  if (isOpen) {
-    children.classList.remove('open');
-    header.classList.remove('open');
-  } else {
-    openGroup(id);
-    header.classList.add('open');
-    // Navigate to first child if not already in this group
-    if (!PARENT_MAP[currentView] || PARENT_MAP[currentView] !== id) {
-      const firstChild = children.querySelector('.nav-child');
-      if (firstChild) {
-        const childId = firstChild.getAttribute('data-nav');
-        if (childId) navigate(childId);
-      }
-    }
-  }
-}
-
-function openGroup(id) {
-  const children = document.getElementById('group-' + id);
-  if (children) children.classList.add('open');
-  const header = document.querySelector(`[data-group="${id}"]`);
-  if (header) header.classList.add('open');
-}
-
-function loadView(id) {
-  switch(id) {
-    case 'overview':        loadOverview(); break;
-    case 'etsy':            loadEtsy(); break;
-    case 'fiverr':          loadFiverr(); break;
-    case 'pipeline-system': loadJobs(); break;
-    case 'designs-etsy':    loadEtsyDesigns(); break;
-    case 'designs-fiverr':  loadFiverrDesigns(); break;
-    case 'scout-main':      loadProposals('main', currentProposalStatus.main); break;
-    case 'scout-fiverr':    loadProposals('fiverr', currentProposalStatus.fiverr); break;
-    case 'memory':          loadMemory(''); break;
-    case 'finance':         loadFinance(); break;
-    case 'orchestrator':    loadOrchestratorState(); break;
-  }
-}
-
-function refreshCurrent() { loadView(currentView); }
-
-// ─── Auto-refresh every 60s ───────────────────────────────────────────────────
-setInterval(() => {
-  if (['overview','etsy','fiverr'].includes(currentView)) loadView(currentView);
-}, 60000);
-
-// ─── Fetch helpers ────────────────────────────────────────────────────────────
 async function apiFetch(url) {
   try {
     const r = await fetch(url, { cache: 'no-store' });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json();
-  } catch(e) {
-    console.error('apiFetch error:', url, e);
-    return null;
-  }
+  } catch { return null; }
 }
 
 function fmtMoney(v) {
-  if (v == null) return '--';
-  const n = parseFloat(v);
-  const color = n >= 0 ? 'var(--green)' : 'var(--red)';
-  return `<span style="color:${color}">${n >= 0 ? '+' : ''}$${Math.abs(n).toFixed(2)}</span>`;
+  const n = parseFloat(v) || 0;
+  return '$' + n.toFixed(2);
 }
-
 function fmtDate(s) {
-  if (!s) return '--';
-  try { return new Date(s).toLocaleDateString(); } catch { return s; }
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function fmtTime(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d) ? '' : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+function timeAgo(s) {
+  if (!s) return '';
+  const ms = Date.now() - new Date(s).getTime();
+  if (ms < 60000) return 'just now';
+  if (ms < 3600000) return Math.floor(ms/60000) + 'm ago';
+  if (ms < 86400000) return Math.floor(ms/3600000) + 'h ago';
+  return Math.floor(ms/86400000) + 'd ago';
+}
+function elapsed(startIso) {
+  if (!startIso) return '';
+  const s = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
+  if (s < 60) return s + 's';
+  return Math.floor(s/60) + 'm ' + (s%60) + 's';
 }
 
-function fmtDatetime(s) {
-  if (!s) return '--';
-  try { return new Date(s).toLocaleString(); } catch { return s; }
+// ── Navigation ─────────────────────────────────────────────────────────────
+function nav(el) {
+  $$('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  const sec = el.dataset.section;
+  state.section = sec;
+  $$('.section').forEach(s => s.classList.remove('active'));
+  $('s-' + sec).classList.add('active');
+  if (sec === 'streams')      { loadEtsyDesigns(); loadFiverrDesigns(); loadStreamStats(); }
+  if (sec === 'pipeline')     { loadConditions(); loadAgentGrid(); }
+  if (sec === 'intelligence') { loadProposals(); loadMemory(); loadFinance(); }
+  if (sec === 'orchestrator') { loadOrchState(); }
 }
 
-function emptyState(icon, msg) {
-  return `<div class="empty-state"><i class="ti ${icon}"></i><p>${msg}</p></div>`;
-}
+// ── Run agent (SSE) ────────────────────────────────────────────────────────
+function runAgent(name) {
+  const ep = {
+    research:       '/run/research',
+    design:         '/run/design',
+    qa:             '/run/qa',
+    publisher:      '/run/publisher',
+    performance:    '/run/performance',
+    scout:          '/run/scout',
+    fiverr_scout:   '/run/fiverr_scout',
+    fiverr_orders:  '/run/fiverr_orders',
+    fiverr_reviews: '/run/fiverr_reviews',
+    fiverr_test:    '/run/fiverr_test',
+    memory:         '/run/memory',
+    anomaly:        '/run/anomaly',
+    prompt_evolution: '/run/prompt_evolution',
+    reporting:      '/run/reporting',
+    cleanup:        '/run/cleanup',
+  }[name];
+  if (!ep) return;
 
-function statusBadge(status) {
-  const map = {
-    approved: 'badge-green', generated: 'badge-yellow', rejected: 'badge-red',
-    published: 'badge-blue', pending: 'badge-yellow', done: 'badge-green',
-    failed: 'badge-red', processing: 'badge-accent', active: 'badge-green',
-    draft: 'badge-gray', launched: 'badge-blue', ignored: 'badge-gray',
-  };
-  return `<span class="badge ${map[status] || 'badge-gray'}">${status || 'unknown'}</span>`;
-}
+  _openTaskCard(name);
+  const log = $('live-log');
+  if (log) { log.innerHTML = ''; }
 
-// ─── OVERVIEW ─────────────────────────────────────────────────────────────────
-async function loadOverview() {
-  const [stats, etsyS, fiverrS, jobs] = await Promise.all([
-    apiFetch('/stats'),
-    apiFetch('/etsy/stats'),
-    apiFetch('/fiverr/stats'),
-    apiFetch('/jobs'),
-  ]);
-
-  if (stats) {
-    document.getElementById('ov-revenue').textContent  = '$' + (stats.week_revenue || 0).toFixed(2);
-    document.getElementById('ov-net').textContent      = (stats.week_net >= 0 ? '+' : '') + '$' + (stats.week_net || 0).toFixed(2);
-    document.getElementById('ov-net').style.color      = (stats.week_net || 0) >= 0 ? 'var(--green)' : 'var(--red)';
-    document.getElementById('ov-spend').textContent    = '$' + (stats.month_spend || 0).toFixed(4);
-    document.getElementById('ov-listings').textContent = stats.listings_published || 0;
-    document.getElementById('ov-designed').textContent = stats.designed_today || 0;
-    document.getElementById('ov-approved').textContent = stats.approved_today || 0;
-    const gen = stats.designed_today || 0;
-    const appr = stats.approved_today || 0;
-    const rate = gen ? Math.round(appr / gen * 100) : 0;
-    document.getElementById('ov-rate').textContent = gen ? `${rate}% pass rate` : '';
-    const cap  = stats.spend_cap || 10;
-    const pct  = Math.min(100, (stats.month_spend / cap) * 100);
-    const bar  = document.getElementById('ov-spend-bar');
-    bar.style.width = pct + '%';
-    bar.className = 'progress-fill' + (pct > 80 ? ' danger' : pct > 60 ? ' warn' : '');
-    document.getElementById('ov-spend-sub').textContent = `of $${cap} cap`;
-  }
-
-  // Etsy card
-  if (etsyS && !etsyS.error) {
-    document.getElementById('ov-etsy-content').innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Active listings</span><span>${etsyS.active_listings}</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Revenue this week</span><span style="color:var(--accent)">$${(etsyS.revenue_this_week||0).toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Orders this week</span><span>${etsyS.orders_this_week}</span></div>
-      </div>`;
-  } else {
-    document.getElementById('ov-etsy-content').innerHTML = emptyState('ti-shopping-bag', 'Etsy shop not opened yet');
-  }
-
-  // Fiverr card
-  if (fiverrS && !fiverrS.error) {
-    const rating = fiverrS.avg_rating ? `⭐ ${parseFloat(fiverrS.avg_rating).toFixed(1)}` : 'No reviews yet';
-    document.getElementById('ov-fiverr-content').innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Orders this week</span><span>${fiverrS.orders_this_week}</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Revenue this week</span><span style="color:var(--accent)">$${(fiverrS.revenue_this_week||0).toFixed(2)}</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Rating</span><span>${rating}</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Delivered total</span><span>${fiverrS.delivered_total || 0}</span></div>
-      </div>`;
-  } else {
-    document.getElementById('ov-fiverr-content').innerHTML = emptyState('ti-brand-fiverr', 'No Fiverr data yet');
-  }
-
-  // Alerts from job_queue
-  if (jobs && jobs.length) {
-    const alerts = jobs.filter(j => j.job_type && (j.job_type.includes('alert') || j.job_type.includes('error') || j.status === 'failed'));
-    const el = document.getElementById('ov-alerts');
-    if (alerts.length) {
-      el.innerHTML = alerts.slice(0,5).map(a => `
-        <div class="alert-item ${a.status==='failed'?'err':''}">
-          <i class="ti ti-alert-triangle"></i>
-          <div><div class="alert-text">${a.job_type}</div><div class="alert-time">${fmtDatetime(a.created_at)}</div></div>
-        </div>`).join('');
-    } else {
-      el.innerHTML = emptyState('ti-checks', 'No alerts — all systems normal');
+  fetch(ep, { method: 'POST', cache: 'no-store' }).then(r => {
+    if (!r.ok || !r.body) return;
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    function pump() {
+      reader.read().then(({ done, value }) => {
+        if (done) return;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const raw = line.slice(5).trim();
+          let msg;
+          try { msg = JSON.parse(raw); } catch { msg = raw; }
+          if (typeof msg === 'string' && msg.startsWith('__DONE__')) {
+            _closeTaskCard(name, msg.includes(':0') ? 'done' : 'error');
+            return;
+          }
+          if (log) {
+            const d = document.createElement('div');
+            d.className = 'log-line' + (msg.toLowerCase?.().includes('error') ? ' err' : '');
+            d.textContent = msg;
+            log.appendChild(d);
+            log.scrollTop = log.scrollHeight;
+          }
+        }
+        pump();
+      });
     }
-  }
+    pump();
+  });
 }
 
-// ─── ETSY ─────────────────────────────────────────────────────────────────────
-async function loadEtsy() {
-  const [s, briefs] = await Promise.all([
-    apiFetch('/etsy/stats'),
-    apiFetch('/briefs?platform=etsy'),
+// ── Task cards ─────────────────────────────────────────────────────────────
+function _openTaskCard(name) {
+  const strip = $('task-strip');
+  $('strip-idle').style.display = 'none';
+  if (state.taskCards[name]) { state.taskCards[name].el.remove(); }
+  const card = document.createElement('div');
+  card.className = 'task-card running';
+  card.innerHTML = `
+    <button class="tc-dismiss" onclick="this.closest('.task-card').remove()">✕</button>
+    <div class="tc-name"><span class="pulse-dot"></span>${name}</div>
+    <div class="tc-step">Starting…</div>
+    <div class="tc-bar-bg"><div class="tc-bar" style="width:0%"></div></div>
+    <div class="tc-footer"><span class="tc-elapsed">0s</span><span class="tc-cost"></span></div>`;
+  strip.appendChild(card);
+  state.taskCards[name] = { el: card, start: Date.now() };
+}
+function _closeTaskCard(name, result) {
+  const tc = state.taskCards[name];
+  if (!tc) return;
+  tc.el.classList.remove('running');
+  tc.el.classList.add(result === 'done' ? 'done' : 'error-state');
+  tc.el.querySelector('.tc-step').textContent = result === 'done' ? 'Complete' : 'Error';
+  tc.el.querySelector('.tc-bar').style.width = '100%';
+  if (result !== 'done') tc.el.querySelector('.tc-bar').classList.add('error-bar');
+  if (result === 'done') {
+    setTimeout(() => { tc.el.remove(); _checkStripIdle(); }, 30000);
+  }
+}
+function _checkStripIdle() {
+  const cards = document.querySelectorAll('.task-card');
+  $('strip-idle').style.display = cards.length === 0 ? 'flex' : 'none';
+}
+
+// ── Agent status polling (3 s) ─────────────────────────────────────────────
+async function pollAgentStatus() {
+  const data = await apiFetch('/agent-status');
+  if (!data) return;
+  state.agentStatus = data;
+
+  // Update task cards
+  for (const [name, info] of Object.entries(data)) {
+    if (name === '__spend__') continue;
+    const tc = state.taskCards[name];
+    if (!tc) continue;
+    tc.el.querySelector('.tc-step').textContent = info.current_step || '…';
+    tc.el.querySelector('.tc-bar').style.width  = (info.progress || 0) + '%';
+    tc.el.querySelector('.tc-elapsed').textContent = elapsed(info.started_at);
+    if (info.cost_this_run) tc.el.querySelector('.tc-cost').textContent = '$' + info.cost_this_run.toFixed(4);
+  }
+
+  // Header spend
+  const sp = data.__spend__;
+  if (sp) {
+    const pct = Math.min(100, sp.month_spend / sp.spend_cap * 100);
+    const col  = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--yellow)' : 'var(--acc)';
+    $('hdr-spend').innerHTML = `<span style="color:${col}"><b>$${sp.month_spend.toFixed(2)}</b></span> <span>/ $${sp.spend_cap.toFixed(2)} cap</span>`;
+  }
+
+  // Agent grid dots
+  loadAgentGridStatus();
+}
+
+// ── Activity feed ──────────────────────────────────────────────────────────
+const ACT_ICONS = {
+  design_generated:'ti-photo',design_approved:'ti-circle-check',design_rejected:'ti-circle-x',
+  order_received:'ti-mail-opened',order_fulfilled:'ti-package',listing_published:'ti-world-upload',
+  research_complete:'ti-microscope',error:'ti-alert-triangle',sale:'ti-cash',
+  proposal_found:'ti-bulb',system:'ti-settings',
+};
+const ACT_COLORS = {
+  design_approved:'var(--green)',design_rejected:'var(--red)',error:'var(--red)',
+  sale:'var(--acc)',order_received:'var(--blue)',order_fulfilled:'var(--green)',
+  proposal_found:'var(--yellow)',system:'var(--text3)',
+};
+
+async function loadActivity() {
+  const rows = await apiFetch('/activity?limit=50');
+  if (!rows) return;
+  const list = $('activity-list');
+  if (!rows.length) { list.innerHTML = '<div class="act-empty">No activity yet</div>'; return; }
+  $('act-count').textContent = rows.length;
+  list.innerHTML = rows.map(r => {
+    const icon  = ACT_ICONS[r.event_type]  || 'ti-point';
+    const color = ACT_COLORS[r.event_type] || 'var(--text2)';
+    return `<div class="act-item">
+      <div class="act-icon" style="color:${color}"><i class="ti ${icon}"></i></div>
+      <div class="act-body">
+        <div class="act-msg">${r.message}</div>
+        <div class="act-meta">${r.agent} · ${timeAgo(r.created_at)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────
+async function loadNotifications() {
+  const rows = await apiFetch('/notifications');
+  if (!rows || !rows.length) {
+    $('notif-list').innerHTML = '<div class="notif-empty">No alerts</div>';
+    $('bell-badge').classList.add('hidden');
+    return;
+  }
+  if (!state.notifRead) {
+    $('bell-badge').textContent = rows.length;
+    $('bell-badge').classList.remove('hidden');
+  }
+  const icons = { error:'ti-alert-triangle', proposal_found:'ti-bulb', order_received:'ti-mail-opened', sale:'ti-cash' };
+  const colors = { error:'var(--red)', proposal_found:'var(--yellow)', order_received:'var(--blue)', sale:'var(--acc)' };
+  $('notif-list').innerHTML = rows.map(r => `
+    <div class="notif-item">
+      <div class="notif-icon" style="color:${colors[r.event_type]||'var(--text2)'}"><i class="ti ${icons[r.event_type]||'ti-bell'}"></i></div>
+      <div class="notif-body">
+        <div class="notif-msg">${r.message}</div>
+        <div class="notif-time">${r.agent} · ${timeAgo(r.created_at)}</div>
+      </div>
+    </div>`).join('');
+}
+function toggleNotifDropdown() {
+  const dd = $('notif-dropdown');
+  const bd = $('notif-backdrop');
+  const open = dd.style.display !== 'none';
+  dd.style.display = open ? 'none' : 'block';
+  bd.style.display  = open ? 'none' : 'block';
+  if (!open) { state.notifRead = true; $('bell-badge').classList.add('hidden'); }
+}
+function closeNotifDropdown() {
+  $('notif-dropdown').style.display = 'none';
+  $('notif-backdrop').style.display = 'none';
+}
+function clearNotifications() { closeNotifDropdown(); }
+
+// ── Overview ───────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const [stats, etsy, fiverr, cond] = await Promise.all([
+    apiFetch('/stats'), apiFetch('/etsy/stats'), apiFetch('/fiverr/stats'),
+    apiFetch('/scheduler/conditions'),
   ]);
-  if (s) {
-    document.getElementById('etsy-active').textContent   = s.active_listings ?? '--';
-    document.getElementById('etsy-drafts').textContent   = s.draft_listings ?? '--';
-    document.getElementById('etsy-rev').textContent      = '$' + (s.revenue_this_week || 0).toFixed(2);
-    document.getElementById('etsy-orders').textContent   = s.orders_this_week ?? 0;
-    document.getElementById('etsy-avg-net').textContent  = '$' + (s.avg_net_per_sale || 0).toFixed(2);
-    const badge = document.getElementById('etsy-status-badge');
-    if (s.active_listings > 0) { badge.className = 'badge badge-green'; badge.textContent = 'Active'; }
-  }
 
-  const el = document.getElementById('etsy-briefs');
-  if (briefs && briefs.length) {
-    el.innerHTML = briefs.slice(0,5).map(b => `
-      <div style="padding:8px 0;border-bottom:1px solid var(--border)">
-        <div style="font-weight:600;font-size:13px">${b.niche} — ${b.sub_niche || ''}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">${b.opportunity_summary || 'No summary'}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtDate(b.created_at)}</div>
-      </div>`).join('');
-  } else {
-    el.innerHTML = emptyState('ti-file-text', 'No briefs yet — run Etsy Research');
-  }
-}
-
-// ─── FIVERR ───────────────────────────────────────────────────────────────────
-async function loadFiverr() {
-  const [s, orders] = await Promise.all([
-    apiFetch('/fiverr/stats'),
-    apiFetch('/fiverr/orders'),
-  ]);
-  if (s) {
-    document.getElementById('fv-orders').textContent    = s.orders_this_week ?? '--';
-    document.getElementById('fv-rev').textContent       = '$' + (s.revenue_this_week || 0).toFixed(2);
-    document.getElementById('fv-rating').textContent    = s.avg_rating ? parseFloat(s.avg_rating).toFixed(1) + ' ⭐' : 'No reviews';
-    document.getElementById('fv-pending').textContent   = s.pending_orders ?? 0;
-    document.getElementById('fv-delivered').textContent = s.delivered_total ?? 0;
-  }
-  const tbody = document.getElementById('fiverr-orders-body');
-  if (orders && orders.length) {
-    tbody.innerHTML = orders.map(o => `
-      <tr>
-        <td><span style="font-family:monospace;font-size:11px">${o.etsy_order_id || '--'}</span></td>
-        <td>${fmtDate(o.order_date)}</td>
-        <td>$${parseFloat(o.gross_revenue||0).toFixed(2)}</td>
-        <td>${fmtMoney(o.net_profit)}</td>
-      </tr>`).join('');
-  } else {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">No Fiverr orders yet</td></tr>';
-  }
-}
-
-// ─── JOBS ─────────────────────────────────────────────────────────────────────
-async function loadJobs() {
-  const jobs = await apiFetch('/jobs');
-  const tbody = document.getElementById('jobs-table-body');
-  if (!tbody) return;
-  if (jobs && jobs.length) {
-    tbody.innerHTML = jobs.map(j => `
-      <tr>
-        <td>${j.job_type}</td>
-        <td>${j.platform || '--'}</td>
-        <td>${statusBadge(j.status)}</td>
-        <td>${fmtDatetime(j.created_at)}</td>
-      </tr>`).join('');
-  } else {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">No jobs yet</td></tr>';
-  }
-}
-
-// ─── ETSY DESIGNS ─────────────────────────────────────────────────────────────
-async function loadEtsyDesigns() {
-  // Load stats
-  const stats = await apiFetch('/designs/etsy/stats');
   if (stats) {
-    document.getElementById('eds-gen').textContent  = stats.generated_today ?? 0;
-    document.getElementById('eds-appr').textContent = stats.approved_today ?? 0;
-    document.getElementById('eds-rej').textContent  = stats.rejected_today ?? 0;
-    document.getElementById('eds-pub').textContent  = stats.published_total ?? 0;
-    document.getElementById('eds-rate').textContent = (stats.approval_rate ?? 0) + '%';
+    $('ov-rev').textContent      = fmtMoney(stats.week_revenue);
+    $('ov-net').textContent      = fmtMoney(stats.week_net);
+    $('ov-listings').textContent = stats.listings_published ?? '0';
+    $('ov-generated').textContent= stats.designed_today ?? '0';
+    const spend = stats.month_spend || 0, cap = stats.spend_cap || 100;
+    $('ov-spend').textContent    = '$' + spend.toFixed(2);
+    $('ov-spend-sub').textContent= Math.round(spend/cap*100) + '% of cap';
+
+    // Approved unpublished
+    apiFetch('/designs?platform=etsy').then(d => {
+      if (!d) return;
+      const n = (d || []).filter(x => x.status === 'approved').length;
+      $('ov-approved').textContent = n;
+    });
   }
-  // Load designs
-  console.log('[designs-etsy] fetching: /designs?platform=etsy');
-  const data = await apiFetch('/designs?platform=etsy');
-  const raw = data || [];
-  console.log('[designs-etsy] server returned:', raw.length, 'rows | platforms:', [...new Set(raw.map(d => d.platform))]);
-  // Client-side guard: only keep designs explicitly tagged as etsy
-  allEtsyDesigns = raw.filter(d => d.platform === 'etsy');
-  console.log('[designs-etsy] after client filter:', allEtsyDesigns.length, 'etsy designs');
+
+  if (etsy) {
+    const active = etsy.active_listings || 0;
+    $('ov-etsy-status').textContent = active > 0 ? 'Active' : 'Setting Up';
+    $('ov-etsy-status').className   = 'badge ' + (active > 0 ? 'badge-green' : 'badge-yellow');
+    $('ov-etsy-summary').innerHTML  = `${active} active listing${active!==1?'s':''} · ${fmtMoney(etsy.revenue_this_week)} this week`;
+  }
+  if (fiverr) {
+    const del = fiverr.delivered_total || 0;
+    $('ov-fiverr-status').textContent = del > 0 ? 'Active' : 'Setting Up';
+    $('ov-fiverr-status').className   = 'badge ' + (del > 0 ? 'badge-green' : 'badge-yellow');
+    $('ov-fiverr-summary').innerHTML  = `${del} delivered · ${fmtMoney(fiverr.revenue_this_week)} this week`;
+  }
+
+  if (cond) {
+    state.conditions = cond;
+    const names = ['research','design','publisher','fiverr_orders','performance','memory','anomaly','scout','reporting','prompt_evolution'];
+    $('ov-conditions').innerHTML = names.map(n => {
+      const c = cond[n] || {};
+      const run = c.should_run !== false;
+      return `<div class="cond-item">
+        <div class="cond-dot ${run?'run':'skip'}"></div>
+        <div><div class="cond-name">${n.replace(/_/g,' ')}</div><div class="cond-reason">${(c.reason||'').slice(0,50)}</div></div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── Streams ────────────────────────────────────────────────────────────────
+let etsyFilter = 'all', fiverrFilter = 'all';
+
+function filterDesigns(platform, filter, btn) {
+  if (btn) {
+    const parent = btn.closest('.tabs');
+    if (parent) parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  if (platform === 'etsy') { etsyFilter = filter; renderEtsyDesigns(); }
+  else { fiverrFilter = filter; renderFiverrDesigns(); }
+}
+
+async function loadStreamStats() {
+  const [etsy, fiverr, eStats, fStats] = await Promise.all([
+    apiFetch('/etsy/stats'), apiFetch('/fiverr/stats'),
+    apiFetch('/designs/etsy/stats'), apiFetch('/designs/fiverr/stats'),
+  ]);
+  if (etsy) {
+    $('etsy-active').textContent = etsy.active_listings ?? '0';
+    $('etsy-rev').textContent    = fmtMoney(etsy.revenue_this_week);
+    $('etsy-orders').textContent = etsy.orders_this_week ?? '0';
+    $('etsy-avg').textContent    = fmtMoney(etsy.avg_net_per_sale);
+  }
+  if (fiverr) {
+    $('fv-delivered').textContent = fiverr.delivered_total ?? '0';
+    $('fv-orders').textContent    = fiverr.orders_this_week ?? '0';
+    $('fv-rev').textContent       = fmtMoney(fiverr.revenue_this_week);
+    $('fv-rating').textContent    = fiverr.avg_rating != null ? fiverr.avg_rating.toFixed(1) + ' ★' : '—';
+  }
+  if (eStats) {
+    $('etsy-design-stats').textContent =
+      `${eStats.generated_today} generated · ${eStats.approved_today} approved · ${eStats.rejected_today} rejected · ${eStats.approval_rate}% pass rate`;
+  }
+}
+
+async function loadEtsyDesigns() {
+  $('etsy-designs').innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
+  const raw = await apiFetch('/designs?platform=etsy');
+  state.etsyDesigns = (raw || []).filter(d => d.platform === 'etsy');
   renderEtsyDesigns();
 }
 
-function filterEtsyDesigns(status, tabEl) {
-  currentEtsyFilter = status;
-  document.querySelectorAll('#view-designs-etsy .tab').forEach(t => t.classList.remove('active'));
-  if (tabEl) tabEl.classList.add('active');
-  renderEtsyDesigns();
+async function loadFiverrDesigns() {
+  $('fiverr-designs').innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
+  const raw = await apiFetch('/designs?platform=fiverr');
+  state.fiverrDesigns = (raw || []).filter(d => d.platform === 'fiverr');
+  renderFiverrDesigns();
 }
 
 function etsyStatusBadge(status) {
-  const map = {
-    generated: { cls: 'badge-gray',   label: 'Pending QA' },
-    approved:  { cls: 'badge-green',  label: 'Approved' },
-    rejected:  { cls: 'badge-red',    label: 'Rejected' },
-    published: { cls: 'badge-blue',   label: 'Published' },
-  };
-  const s = map[status] || map['generated'];
-  return `<span class="badge ${s.cls}">${s.label}</span>`;
+  const m = { approved:'badge-green', rejected:'badge-red', published:'badge-blue', generated:'badge-gray' };
+  const l = { approved:'Approved', rejected:'Rejected', published:'Published', generated:'Generated' };
+  return `<span class="badge ${m[status]||'badge-gray'}">${l[status]||status}</span>`;
+}
+function fiverrStatusBadge(status) {
+  const m = { published:'badge-green', approved:'badge-yellow', rejected:'badge-red', generated:'badge-gray' };
+  const l = { published:'Delivered', approved:'Ready', rejected:'Rejected', generated:'Generating' };
+  return `<span class="badge ${m[status]||'badge-gray'}">${l[status]||status}</span>`;
 }
 
 function renderEtsyDesigns() {
-  const grid = document.getElementById('etsy-designs-grid');
-  let designs = allEtsyDesigns;
-  if (currentEtsyFilter !== 'all') {
-    designs = designs.filter(d => d.status === currentEtsyFilter);
-  }
+  let designs = state.etsyDesigns;
+  if (etsyFilter !== 'all') designs = designs.filter(d => d.status === etsyFilter);
+  const el = $('etsy-designs');
   if (!designs.length) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">${emptyState('ti-photo', 'No designs in this category yet')}</div>`;
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-photo-off"></i><p>No designs found</p></div>';
     return;
   }
-  grid.innerHTML = designs.map(d => {
-    const cost      = d.generation_cost ? `$${parseFloat(d.generation_cost).toFixed(4)}` : '--';
-    const angle     = d.variation_angle || '--';
-    const attempts  = d.attempts || 1;
-    const rejected  = d.status === 'rejected';
-    const noFile    = !d.has_file || d.missing;
-    const cardStyle = rejected
-      ? 'opacity:0.4;border:1px solid rgba(255,50,50,0.3)'
-      : noFile ? 'border:1px solid rgba(255,200,0,0.2)' : '';
-    const imgStyle  = rejected ? 'filter:grayscale(60%)' : '';
-    const footerBtns = d.status === 'approved' && !noFile
-      ? `<button class="btn btn-sm btn-green" onclick="runAgentStream('pipe-etsy-log','publisher')"><i class="ti ti-upload"></i> Publish</button>`
-      : '';
-    const imgSection = noFile
-      ? `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;background:var(--surface3);border-radius:6px 6px 0 0">
-           <i class="ti ti-photo-off" style="font-size:28px;color:var(--text3)"></i>
-           <span style="font-size:10px;color:var(--yellow);text-align:center;padding:0 8px">Image file deleted</span>
-         </div>`
-      : `<div class="img-wrap square" onclick="openLightbox('${d.url}')">
-           <img src="${d.url}" alt="${d.niche}" loading="lazy" style="${imgStyle}">
-         </div>`;
-    return `
-      <div class="design-card" style="${cardStyle}">
-        ${imgSection}
-        <div class="card-body">
-          <div class="dc-title">${d.niche || 'Unknown niche'}</div>
-          <div class="dc-meta">
-            <span style="color:var(--text3);font-size:10px">Angle: ${angle}</span>
-            <span style="color:var(--text3);font-size:10px">Attempts: ${attempts} &bull; Cost: ${cost}</span>
-            ${d.qa_reason ? `<span style="color:var(--yellow);font-size:10px">QA: ${d.qa_reason.slice(0,80)}</span>` : ''}
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            ${etsyStatusBadge(d.status)}
-            <span style="font-size:10px;color:var(--text3)">${fmtDate(d.timestamp)}</span>
-          </div>
-        </div>
-        ${footerBtns ? `<div class="card-footer">${footerBtns}</div>` : ''}
-      </div>`;
+  el.innerHTML = designs.map(d => {
+    const img = d.has_file !== false
+      ? `<img src="${d.url}" alt="${d.niche}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=dc-placeholder><i class=ti ti-photo-off></i><span style=font-size:10px>Missing</span></div>'">`
+      : `<div class="dc-placeholder"><i class="ti ti-photo-off"></i><span style="font-size:9px">Deleted</span></div>`;
+    return `<div class="dc${d.status==='rejected'?' rejected':''}">
+      ${img}
+      <div class="dc-body">
+        <div class="dc-niche">${d.niche||'Unknown'}</div>
+        <div class="dc-meta">${etsyStatusBadge(d.status)}</div>
+        ${d.qa_reason?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${d.qa_reason.slice(0,60)}</div>`:''}
+      </div>
+    </div>`;
   }).join('');
-}
-
-// ─── FIVERR DESIGNS ───────────────────────────────────────────────────────────
-async function loadFiverrDesigns() {
-  const stats = await apiFetch('/designs/fiverr/stats');
-  if (stats) {
-    document.getElementById('fds-week').textContent  = stats.orders_this_week ?? 0;
-    document.getElementById('fds-total').textContent = stats.delivered_total ?? 0;
-    document.getElementById('fds-pending').textContent = stats.pending_delivery ?? 0;
-    document.getElementById('fds-avg').textContent   = stats.avg_attempts_per_order ?? 0;
-  }
-  console.log('[designs-fiverr] fetching: /designs?platform=fiverr');
-  const data = await apiFetch('/designs?platform=fiverr');
-  const raw = data || [];
-  console.log('[designs-fiverr] server returned:', raw.length, 'rows | platforms:', [...new Set(raw.map(d => d.platform))]);
-  // Client-side guard: only keep designs explicitly tagged as fiverr
-  allFiverrDesigns = raw.filter(d => d.platform === 'fiverr');
-  console.log('[designs-fiverr] after client filter:', allFiverrDesigns.length, 'fiverr designs');
-  renderFiverrDesigns();
-}
-
-function filterFiverrDesigns(status, tabEl) {
-  currentFiverrFilter = status;
-  document.querySelectorAll('#view-designs-fiverr .tab').forEach(t => t.classList.remove('active'));
-  if (tabEl) tabEl.classList.add('active');
-  renderFiverrDesigns();
-}
-
-function fiverrStatusBadge(status) {
-  const map = {
-    published: { cls: 'badge-green',  label: 'Delivered' },
-    approved:  { cls: 'badge-yellow', label: 'Ready to Deliver' },
-    rejected:  { cls: 'badge-red',    label: 'Rejected' },
-    generated: { cls: 'badge-gray',   label: 'Generating' },
-  };
-  const s = map[status] || map['generated'];
-  return `<span class="badge ${s.cls}">${s.label}</span>`;
 }
 
 function renderFiverrDesigns() {
-  const grid = document.getElementById('fiverr-designs-grid');
-  let designs = allFiverrDesigns;
-  if (currentFiverrFilter !== 'all') {
-    designs = designs.filter(d => d.status === currentFiverrFilter);
-  }
+  let designs = state.fiverrDesigns;
+  if (fiverrFilter === 'approved') designs = designs.filter(d => d.status === 'approved');
+  else if (fiverrFilter === 'published') designs = designs.filter(d => d.status === 'published');
+  const el = $('fiverr-designs');
   if (!designs.length) {
-    const msgs = {
-      approved:  'No thumbnails ready to deliver',
-      published: 'No delivered thumbnails yet',
-      rejected:  'No rejected thumbnails',
-      all:       'No Fiverr designs yet. Designs will appear here automatically when your first Fiverr order is fulfilled.',
-    };
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">${emptyState('ti-brand-fiverr', msgs[currentFiverrFilter] || msgs.all)}</div>`;
+    el.innerHTML = `<div class="empty-state"><i class="ti ti-photo-off"></i><p>No Fiverr designs yet.<br>Designs appear here when your first order is fulfilled.</p></div>`;
     return;
   }
-  grid.innerHTML = designs.map(d => {
-    const title    = d.video_title || d.niche || 'Thumbnail';
-    const niche    = d.channel_niche || d.niche || '--';
-    const pkg      = d.package || '--';
-    const orderId  = d.order_id || d.filename?.replace('.png','') || '--';
-    const cost     = d.generation_cost ? `$${parseFloat(d.generation_cost).toFixed(4)}` : '--';
-    const rejected = d.status === 'rejected';
-    const cardStyle = rejected ? 'opacity:0.4;border:1px solid rgba(255,50,50,0.3)' : '';
-    const imgStyle  = rejected ? 'filter:grayscale(60%)' : '';
-    return `
-      <div class="design-card" style="${cardStyle}">
-        <div class="img-wrap" onclick="openLightbox('${d.url}')">
-          <img src="${d.url}" alt="${title}" loading="lazy" style="${imgStyle}">
-        </div>
-        <div class="card-body">
-          <div class="dc-title" title="${title}">${title}</div>
-          <div class="dc-meta">
-            <span style="color:var(--text3);font-size:10px">Niche: ${niche}</span>
-            <span style="color:var(--text3);font-size:10px">Pkg: ${pkg} &bull; Cost: ${cost}</span>
-            <span style="color:var(--text3);font-size:10px">ID: ${orderId}</span>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            ${fiverrStatusBadge(d.status)}
-            <span style="font-size:10px;color:var(--text3)">${fmtDate(d.timestamp)}</span>
-          </div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-// ─── SCOUT ────────────────────────────────────────────────────────────────────
-async function loadProposals(scope, status) {
-  currentProposalStatus[scope] = status;
-  const containerId = scope === 'fiverr' ? 'scout-fiverr-proposals' : 'scout-main-proposals';
-  const el = document.getElementById(containerId);
-  el.innerHTML = '<div class="empty-state"><i class="ti ti-loader ti-spin"></i><p>Loading...</p></div>';
-
-  const url = scope === 'fiverr' ? `/proposals?status=${status}&platform=fiverr` : `/proposals?status=${status}&platform=main`;
-  const data = await apiFetch(url);
-  if (!data || !data.length) {
-    el.innerHTML = emptyState('ti-telescope', `No ${status} proposals yet`);
-    return;
-  }
-  el.innerHTML = data.map(p => {
-    const isFiverr = p.platform === 'fiverr_expansion';
-    const platformBadge = isFiverr
-      ? '<span class="badge badge-accent">Fiverr Expansion</span>'
-      : `<span class="badge badge-blue">${p.platform || 'unknown'}</span>`;
-    const actionBtns = p.status === 'pending' ? `
-      <button class="btn btn-sm btn-green" onclick="approveProposal('${p.id}','${scope}')"><i class="ti ti-check"></i> Approve</button>
-      <button class="btn btn-sm btn-red"   onclick="ignoreProposal('${p.id}','${scope}')"><i class="ti ti-x"></i> Ignore</button>` : '';
-    return `
-      <div class="proposal-card">
-        <div class="proposal-title">${p.opportunity_name || 'Unnamed'} ${platformBadge} ${statusBadge(p.status)}</div>
-        <div class="proposal-body">${p.how_it_works || 'No description'}</div>
-        <div class="proposal-row">
-          <span>💰 $${(p.monthly_potential_usd||0).toFixed(0)}/mo potential</span>
-          <span>⏱ ${p.setup_time_hours || 0}h setup</span>
-          <span>⚠️ ${p.risk_description?.slice(0,60) || 'No risk noted'}</span>
-          <span>🤖 ${p.agent_needed || '--'}</span>
-        </div>
-        ${p.approved_at  ? `<div style="font-size:11px;color:var(--green)">Approved ${fmtDate(p.approved_at)}</div>` : ''}
-        ${p.launched_at  ? `<div style="font-size:11px;color:var(--blue)">Launched ${fmtDate(p.launched_at)}</div>` : ''}
-        ${actionBtns ? `<div class="proposal-actions">${actionBtns}</div>` : ''}
-      </div>`;
-  }).join('');
-}
-
-function filterProposals(scope, status, tabEl) {
-  const prefix = scope === 'fiverr' ? '#view-scout-fiverr' : '#view-scout-main';
-  document.querySelectorAll(prefix + ' .tab').forEach(t => t.classList.remove('active'));
-  if (tabEl) tabEl.classList.add('active');
-  loadProposals(scope, status);
-}
-
-async function approveProposal(id, scope) {
-  const r = await fetch('/proposals/approve', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposal_id:id})});
-  if (r.ok) loadProposals(scope, currentProposalStatus[scope]);
-}
-
-async function ignoreProposal(id, scope) {
-  const r = await fetch('/proposals/ignore', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposal_id:id})});
-  if (r.ok) loadProposals(scope, currentProposalStatus[scope]);
-}
-
-// ─── MEMORY ───────────────────────────────────────────────────────────────────
-async function loadMemory(category) {
-  const el = document.getElementById('memory-cards');
-  el.innerHTML = '<div class="empty-state"><i class="ti ti-loader ti-spin"></i><p>Loading...</p></div>';
-  const url = category ? `/memory?category=${category}` : '/memory';
-  const data = await apiFetch(url);
-  if (!data || !data.length) {
-    el.innerHTML = emptyState('ti-brain', 'No memory entries yet — run the Memory Agent');
-    return;
-  }
-  el.innerHTML = data.map(m => {
-    const val = typeof m.value === 'object' ? JSON.stringify(m.value, null, 2) : String(m.value);
-    const conf = Math.round((m.confidence || 0.5) * 100);
-    return `
-      <div class="memory-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div class="mem-key">${m.key}</div>
-          <span class="badge badge-blue">${m.category}</span>
-        </div>
-        <div class="mem-val">${val.slice(0, 300)}${val.length > 300 ? '...' : ''}</div>
-        <div class="mem-meta">
-          <div style="flex:1"><div class="progress-bar"><div class="progress-fill" style="width:${conf}%"></div></div></div>
-          <span>Conf: ${conf}%</span>
-          <span>n=${m.sample_size || 1}</span>
-          <span>${fmtDate(m.last_updated)}</span>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-function filterMemory(category, tabEl) {
-  document.querySelectorAll('#view-memory .tab').forEach(t => t.classList.remove('active'));
-  if (tabEl) tabEl.classList.add('active');
-  loadMemory(category);
-}
-
-// ─── FINANCE ──────────────────────────────────────────────────────────────────
-async function loadFinance() {
-  const data = await apiFetch('/finance');
-  if (!data) {
-    ['finance-weekly','finance-alltime','finance-spend'].forEach(id => {
-      document.getElementById(id).innerHTML = '<div class="card-title">' + id.replace('finance-','') + '</div>' + emptyState('ti-alert-triangle','Failed to load');
-    });
-    return;
-  }
-
-  // Weekly PnL
-  const w = data.weekly || {};
-  document.getElementById('finance-weekly').innerHTML = `
-    <div class="card-title">This Week</div>
-    <div class="pnl-section">
-      ${pnlRow('Gross Revenue',    '$' + (w.gross_revenue||0).toFixed(2))}
-      ${pnlRow('API Costs',        '-$' + (w.api_costs||0).toFixed(4))}
-      ${pnlRow('Fulfillment',      '-$' + (w.fulfillment_costs||0).toFixed(2))}
-      ${pnlRow('Platform Fees',    '-$' + (w.platform_fees||0).toFixed(2))}
-      ${pnlRow('Other Expenses',   '-$' + (w.expense_costs||0).toFixed(2))}
-      ${pnlRow('Net Profit',       fmtMoney(w.net_profit), true)}
-      ${pnlRow('Orders',           w.order_count || 0)}
-    </div>`;
-
-  // All-time PnL
-  const a = data.all_time || {};
-  const recovered = a.setup_costs_recovered;
-  document.getElementById('finance-alltime').innerHTML = `
-    <div class="card-title">All-Time</div>
-    <div class="pnl-section">
-      ${pnlRow('Gross Revenue',    '$' + (a.gross_revenue||0).toFixed(2))}
-      ${pnlRow('Total API Costs',  '-$' + (a.api_costs||0).toFixed(4))}
-      ${pnlRow('Net Profit',       fmtMoney(a.net_profit), true)}
-      ${pnlRow('Days Running',     a.days_since_launch || 0)}
-      <div class="pnl-row"><span class="label">Setup recovered?</span>
-        <span>${recovered ? '<span class="badge badge-green">Yes ✓</span>' : `<span class="badge badge-yellow">Need $${(a.remaining_to_recover||0).toFixed(2)} more</span>`}</span>
+  el.innerHTML = designs.map(d => {
+    const img = d.has_file !== false
+      ? `<img src="${d.url}" alt="${d.video_title||d.niche}" loading="lazy">`
+      : `<div class="dc-placeholder"><i class="ti ti-photo-off"></i><span style="font-size:9px">Deleted</span></div>`;
+    return `<div class="dc">
+      ${img}
+      <div class="dc-body">
+        <div class="dc-niche">${(d.video_title||d.channel_niche||d.niche||'Fiverr').slice(0,30)}</div>
+        <div class="dc-meta">${fiverrStatusBadge(d.status)}</div>
       </div>
     </div>`;
+  }).join('');
+}
 
-  // Monthly spend
-  const cap = data.spend_cap || 10;
-  const pct = Math.min(100, ((data.month_spend||0) / cap) * 100);
-  const barClass = pct > 80 ? 'danger' : pct > 60 ? 'warn' : '';
-  document.getElementById('finance-spend').innerHTML = `
-    <div class="card-title">Monthly API Spend</div>
-    <div style="font-size:28px;font-weight:700;margin-bottom:8px">$${(data.month_spend||0).toFixed(4)}</div>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">of $${cap} cap (${pct.toFixed(1)}%)</div>
-    <div class="progress-bar"><div class="progress-fill ${barClass}" style="width:${pct}%"></div></div>`;
+// ── Pipeline ───────────────────────────────────────────────────────────────
+const AGENTS_META = [
+  { key:'research',         label:'Research',          run:'research',      desc:'Daily 6AM · Etsy + Fiverr' },
+  { key:'design',           label:'Design',            run:'design',        desc:'Daily 8AM · gpt-image-1' },
+  { key:'qa',               label:'QA',                run:'qa',            desc:'After design · GPT-4o Vision' },
+  { key:'publisher',        label:'Publisher',         run:'publisher',     desc:'Daily 10AM · Etsy/Printify' },
+  { key:'performance',      label:'Performance',       run:'performance',   desc:'Tue+Thu 11AM · Listing stats' },
+  { key:'fiverr_orders',    label:'Fiverr Orders',     run:'fiverr_orders', desc:'Every 4h · IMAP polling' },
+  { key:'fiverr_reviews',   label:'Fiverr Reviews',    run:'fiverr_reviews',desc:'Daily 8PM · Review tracking' },
+  { key:'memory',           label:'Memory',            run:'memory',        desc:'Daily 10PM · Pattern learning' },
+  { key:'anomaly',          label:'Anomaly Detector',  run:'anomaly',       desc:'Daily 11PM · Threshold checks' },
+  { key:'scout',            label:'Scout',             run:'scout',         desc:'Sunday 7AM · Opportunity scan' },
+  { key:'fiverr_scout',     label:'Fiverr Scout',      run:'fiverr_scout',  desc:'Sunday 7:15AM · Gig research' },
+  { key:'prompt_evolution', label:'Prompt Evolution',  run:'prompt_evolution', desc:'Sunday 7:30AM · Prompt tuning' },
+  { key:'reporting',        label:'Reporting',         run:'reporting',     desc:'Sunday 9AM · Weekly P&L email' },
+];
+
+const COND_KEYS = {
+  research:'research', design:'design', publisher:'publisher',
+  fiverr_orders:'fiverr_orders', fiverr_reviews:'fiverr_orders',
+  performance:'performance', memory:'memory', anomaly:'anomaly',
+  scout:'scout', fiverr_scout:'scout', prompt_evolution:'prompt_evolution',
+  reporting:'reporting', qa:null,
+};
+
+function loadAgentGrid() {
+  const grid = $('agent-grid');
+  if (!grid) return;
+  grid.innerHTML = AGENTS_META.map(a => `
+    <div class="agent-card" id="ac-${a.key}">
+      <div class="ac-header">
+        <div class="ac-dot gray" id="acd-${a.key}"></div>
+        <div class="ac-name">${a.label}</div>
+        <button class="btn btn-ghost btn-sm" onclick="runAgent('${a.run}')"><i class="ti ti-play"></i>Run</button>
+      </div>
+      <div class="ac-cond" id="acc-${a.key}">${a.desc}</div>
+    </div>`).join('');
+  loadConditions();
+}
+
+async function loadConditions() {
+  const cond = await apiFetch('/scheduler/conditions');
+  if (!cond) return;
+  state.conditions = cond;
+
+  // Full conditions table in Pipeline section
+  const names = ['research','design','publisher','fiverr_orders','performance','memory','anomaly','scout','reporting','prompt_evolution'];
+  const tbl = $('cond-full-table');
+  if (tbl) {
+    tbl.innerHTML = `<div class="cond-table">${names.map(n => {
+      const c = cond[n] || {};
+      const run = c.should_run !== false;
+      return `<div class="cond-row">
+        <div class="cond-row-name"><span class="cond-dot ${run?'run':'skip'}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${run?'var(--green)':'var(--yellow)'};margin-right:6px"></span>${n.replace(/_/g,' ')}</div>
+        <div class="cond-row-reason" style="color:${run?'var(--text2)':'var(--yellow)'}">${c.reason||''}</div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  // Agent card condition hints
+  AGENTS_META.forEach(a => {
+    const ck  = COND_KEYS[a.key];
+    const el  = $('acc-' + a.key);
+    const dot = $('acd-' + a.key);
+    if (!el || !ck) return;
+    const c = cond[ck];
+    if (!c) return;
+    const run = c.should_run !== false;
+    el.textContent = c.reason || a.desc;
+    el.className   = 'ac-cond' + (!run ? ' skip-cond' : '');
+    if (dot) dot.className = 'ac-dot ' + (run ? 'green' : 'yellow');
+  });
+}
+
+function loadAgentGridStatus() {
+  for (const [name, info] of Object.entries(state.agentStatus)) {
+    if (name === '__spend__') continue;
+    const dot = $('acd-' + name);
+    if (!dot) continue;
+    const cls = { running:'yellow', complete:'green', error:'red', idle:'gray' };
+    dot.className = 'ac-dot ' + (cls[info.status] || 'gray');
+    const card = $('ac-' + name);
+    if (card) {
+      card.classList.toggle('running',     info.status === 'running');
+      card.classList.toggle('error-state', info.status === 'error');
+    }
+  }
+}
+
+// ── Intelligence ───────────────────────────────────────────────────────────
+async function loadProposals() {
+  const rows = await apiFetch(`/proposals?status=${state.proposalFilter}`);
+  const el = $('proposals-list');
+  if (!rows || !rows.length) {
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-bulb"></i><p>No proposals in this category</p></div>';
+    return;
+  }
+  el.innerHTML = rows.map(p => {
+    const isPending = p.status === 'pending';
+    const badge = p.platform === 'fiverr_expansion'
+      ? '<span class="badge badge-blue">Fiverr Expansion</span>'
+      : '<span class="badge badge-acc">Main Scout</span>';
+    return `<div class="proposal-card">
+      <div class="proposal-name">${p.opportunity_name} ${badge}</div>
+      <div class="proposal-how">${p.how_it_works||''}</div>
+      <div class="proposal-meta">
+        <span class="badge badge-gray"><i class="ti ti-clock" style="font-size:11px"></i> ${p.setup_time_hours||'?'}h setup</span>
+        <span class="badge badge-gray"><i class="ti ti-cash" style="font-size:11px"></i> $${p.monthly_potential_usd||'?'}/mo</span>
+        <span class="badge badge-gray">${p.risk_description||''}</span>
+      </div>
+      ${isPending ? `<div class="proposal-actions">
+        <button class="btn btn-acc btn-sm" onclick="approveProposal('${p.id}')"><i class="ti ti-check"></i>Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="ignoreProposal('${p.id}')"><i class="ti ti-x"></i>Ignore</button>
+      </div>` : `<div style="font-size:10px;color:var(--text3)">${p.status} ${p.approved_at ? '· ' + fmtDate(p.approved_at) : ''}</div>`}
+    </div>`;
+  }).join('');
+}
+
+function filterProposals(f, btn) {
+  state.proposalFilter = f;
+  if (btn) {
+    btn.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  loadProposals();
+}
+
+async function approveProposal(id) {
+  await fetch('/proposals/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({proposal_id:id}) });
+  loadProposals();
+}
+async function ignoreProposal(id) {
+  await fetch('/proposals/ignore', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({proposal_id:id}) });
+  loadProposals();
+}
+
+async function loadMemory() {
+  const cat = $('mem-cat-filter')?.value || '';
+  const rows = await apiFetch('/memory' + (cat ? '?category=' + cat : ''));
+  const el = $('memory-list');
+  if (!rows || !rows.length) {
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-database"></i><p>No memory records</p></div>';
+    return;
+  }
+  const catColors = {
+    design_quality:'badge-green', niche_performance:'badge-acc', platform_health:'badge-blue',
+    agent_reliability:'badge-gray', prompt_performance:'badge-yellow', scout_findings:'badge-purple',
+  };
+  el.innerHTML = rows.slice(0,30).map(m => {
+    const val = typeof m.value === 'object' ? JSON.stringify(m.value) : String(m.value);
+    return `<div class="memory-card">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <div class="mem-key">${m.key}</div>
+        <span class="badge ${catColors[m.category]||'badge-gray'}" style="font-size:9px">${m.category}</span>
+      </div>
+      <div class="mem-val">${val.slice(0,200)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">${timeAgo(m.last_updated)} · confidence: ${((m.confidence||0)*100).toFixed(0)}% · n=${m.sample_size||0}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadFinance() {
+  const data = await apiFetch('/finance');
+  if (!data) return;
+  const w = data.weekly || {}, at = data.all_time || {};
+  $('fin-wrev').textContent    = fmtMoney(w.gross_revenue);
+  $('fin-wnet').textContent    = fmtMoney(w.net_profit);
+  $('fin-atnet').textContent   = fmtMoney(at.net_profit);
+  $('fin-mspend').textContent  = fmtMoney(data.month_spend);
+  $('fin-cap').textContent     = fmtMoney(data.spend_cap);
+  const pct = Math.min(100, (data.month_spend||0)/(data.spend_cap||100)*100);
+  $('fin-spend-bar').style.width = pct + '%';
+  $('fin-spend-bar').className   = 'progress-fill ' + (pct>80?'red':pct>60?'yellow':'acc');
+  const rem = at.remaining_to_recover;
+  $('fin-recover').textContent     = rem <= 0 ? '✓ Recovered' : fmtMoney(rem) + ' left';
+  $('fin-recover-sub').textContent = at.setup_costs_recovered ? 'Setup costs recovered' : 'Setup costs pending';
 
   // By agent
-  const byAgent = data.by_agent || {};
-  const agentEl = document.getElementById('finance-by-agent');
-  if (Object.keys(byAgent).length) {
-    const sorted = Object.entries(byAgent).sort((a,b) => b[1]-a[1]);
-    agentEl.innerHTML = sorted.map(([agent, cost]) => `
-      <div class="pnl-row">
-        <span class="label">${agent}</span>
-        <span class="val">$${cost.toFixed(4)}</span>
-      </div>`).join('');
-  } else {
-    agentEl.innerHTML = emptyState('ti-chart-bar', 'No API costs logged yet');
+  const ba = data.by_agent || {};
+  const baEl = $('fin-by-agent');
+  if (baEl) {
+    const sorted = Object.entries(ba).sort((a,b) => b[1]-a[1]);
+    baEl.innerHTML = sorted.length ? sorted.map(([a,c]) =>
+      `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--s3);font-size:11px">
+        <span style="color:var(--text2)">${a}</span><span style="color:var(--acc)">${fmtMoney(c)}</span>
+      </div>`).join('')
+      : '<div style="color:var(--text3);font-size:11px">No costs recorded</div>';
   }
 
   // Expenses
-  const expenses = data.expenses || [];
-  const expEl = document.getElementById('finance-expenses');
-  if (expenses.length) {
-    expEl.innerHTML = expenses.map(e => `
-      <div class="pnl-row">
-        <span class="label" style="flex:1">${e.description || '--'}<br>
-          <span style="font-size:10px;color:var(--text3)">${e.platform} &bull; ${e.category} &bull; ${fmtDate(e.expense_date)}</span>
-        </span>
-        <span class="val" style="color:var(--red)">-$${parseFloat(e.amount_usd||0).toFixed(2)}</span>
-      </div>`).join('');
-  } else {
-    expEl.innerHTML = emptyState('ti-receipt', 'No expenses logged yet');
+  const exEl = $('fin-expenses');
+  if (exEl) {
+    const exps = data.expenses || [];
+    exEl.innerHTML = exps.length ? exps.map(e =>
+      `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--s3);font-size:11px">
+        <div><span style="color:var(--text2)">${e.description}</span><br><span style="font-size:10px;color:var(--text3)">${e.platform} · ${e.expense_date}</span></div>
+        <span style="color:var(--red)">${fmtMoney(e.amount_usd)}</span>
+      </div>`).join('')
+      : '<div style="color:var(--text3);font-size:11px">No expenses</div>';
   }
 }
 
-function pnlRow(label, val, isTotalRow) {
-  return `<div class="pnl-row ${isTotalRow?'total':''}"><span class="label">${label}</span><span class="val">${val}</span></div>`;
-}
-
-// ─── ORCHESTRATOR ─────────────────────────────────────────────────────────────
-async function loadOrchestratorState() {
+// ── Orchestrator ───────────────────────────────────────────────────────────
+async function loadOrchState() {
   const data = await apiFetch('/stats');
-  if (data) {
-    document.getElementById('orch-state').innerHTML = `
-      <div style="display:flex;flex-wrap:wrap;gap:16px">
-        <div><span style="color:var(--text3)">Week Revenue</span> <strong>$${(data.week_revenue||0).toFixed(2)}</strong></div>
-        <div><span style="color:var(--text3)">Month Spend</span> <strong>$${(data.month_spend||0).toFixed(4)}</strong></div>
-        <div><span style="color:var(--text3)">Active Listings</span> <strong>${data.listings_published||0}</strong></div>
-        <div><span style="color:var(--text3)">Designs Today</span> <strong>${data.designed_today||0}</strong></div>
-      </div>`;
-  }
+  if (!data) return;
+  const sp = data.month_spend || 0;
+  $('orch-state-bar').innerHTML = `
+    <b>System:</b> ${data.listings_published||0} active listings &nbsp;·&nbsp;
+    <b>Revenue this week:</b> ${fmtMoney(data.week_revenue)} &nbsp;·&nbsp;
+    <b>Net this week:</b> ${fmtMoney(data.week_net)} &nbsp;·&nbsp;
+    <b>API spend:</b> $${sp.toFixed(2)} / $${(data.spend_cap||100).toFixed(0)} cap`;
+}
+
+function chatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
 }
 
 async function sendChat() {
-  const input = document.getElementById('chat-input');
-  const msg   = input.value.trim();
+  const input = $('chat-input');
+  const msg = input.value.trim();
   if (!msg) return;
   input.value = '';
+  $('chat-send').disabled = true;
 
-  const histEl = document.getElementById('chat-history');
-  const ts = new Date().toLocaleTimeString();
+  const hist = $('chat-history');
+  const addMsg = (role, text) => {
+    const d = document.createElement('div');
+    d.className = 'chat-msg ' + role;
+    d.textContent = text;
+    hist.appendChild(d);
+    const ts = document.createElement('div');
+    ts.className = 'chat-msg ts';
+    ts.textContent = new Date().toLocaleTimeString();
+    hist.appendChild(ts);
+    hist.scrollTop = hist.scrollHeight;
+  };
 
-  histEl.innerHTML += `<div class="msg msg-user">${escHtml(msg)}<div class="msg-time">${ts}</div></div>`;
-  histEl.innerHTML += `<div class="msg msg-agent" id="orch-thinking"><i class="ti ti-dots ti-pulse"></i> Thinking...</div>`;
-  histEl.scrollTop = histEl.scrollHeight;
+  addMsg('user', msg);
+  state.chatHistory.push({ role:'user', content: msg });
 
-  chatHistory.push({ role: 'user', content: msg });
+  const thinking = document.createElement('div');
+  thinking.className = 'chat-msg assistant';
+  thinking.textContent = '…';
+  hist.appendChild(thinking);
+  hist.scrollTop = hist.scrollHeight;
 
   try {
-    const r = await fetch('/orchestrator', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, history: chatHistory }),
+    const res = await fetch('/orchestrator', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: msg, history: state.chatHistory }),
     });
-    const data = await r.json();
-    document.getElementById('orch-thinking')?.remove();
-
+    const data = await res.json();
+    thinking.remove();
     const reply = data.reply || data.error || 'No response';
-    chatHistory = data.history || chatHistory;
-
-    histEl.innerHTML += `<div class="msg msg-agent">${escHtml(reply)}<div class="msg-time">${new Date().toLocaleTimeString()}</div></div>`;
-    histEl.scrollTop = histEl.scrollHeight;
-  } catch(e) {
-    document.getElementById('orch-thinking')?.remove();
-    histEl.innerHTML += `<div class="msg msg-agent" style="color:var(--red)">Error: ${e.message}</div>`;
+    addMsg('assistant', reply);
+    state.chatHistory = data.history || [...state.chatHistory, { role:'assistant', content:reply }];
+  } catch (e) {
+    thinking.textContent = 'Error: ' + e.message;
+  } finally {
+    $('chat-send').disabled = false;
+    input.focus();
   }
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+// ── Auto-refresh ───────────────────────────────────────────────────────────
+async function tick() {
+  await Promise.all([
+    loadActivity(),
+    pollAgentStatus(),
+    loadNotifications(),
+  ]);
+  if (state.section === 'overview') loadOverview();
 }
 
-// ─── SSE / Agent Runner ────────────────────────────────────────────────────────
-function runAndStream(agent, platform) {
-  // Determine which log to use based on current view
-  const logMap = {
-    'etsy': 'etsy-log', 'fiverr': 'fiverr-log',
-    'pipeline-etsy': 'pipe-etsy-log', 'pipeline-fiverr': 'pipe-fiverr-log',
-    'pipeline-system': 'pipe-sys-log',
-    'scout-main': 'scout-main-log', 'scout-fiverr': 'scout-fiverr-log',
-  };
-  const logId = logMap[currentView] || 'pipe-sys-log';
-
-  // Show the log container
-  const logEl = document.getElementById(logId);
-  if (logEl) { logEl.style.display = 'block'; logEl.innerHTML = ''; }
-
-  navigate('pipeline-system');
-  runAgentStream('pipe-sys-log', agent, platform);
-}
-
-function runAgentStream(logId, agent, platform) {
-  if (activeEventSource) { activeEventSource.close(); activeEventSource = null; }
-
-  const logEl = document.getElementById(logId);
-  if (!logEl) return;
-  logEl.style.display = 'block';
-  logEl.innerHTML = `<div class="log-line">Starting ${agent}...</div>`;
-
-  let url = `/run/${agent}`;
-  let opts = {};
-  if (agent === 'research' && platform) {
-    opts = { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ platform }) };
-    // Use fetch + SSE manually since platform needs POST body
-    fetch(url, opts).then(r => {
-      const reader = r.body.getReader();
-      const decoder = new TextDecoder();
-      function read() {
-        reader.read().then(({ done, value }) => {
-          if (done) return;
-          const text = decoder.decode(value);
-          text.split('\n').forEach(line => {
-            if (line.startsWith('data: ')) {
-              try {
-                const msg = JSON.parse(line.slice(6));
-                appendLog(logEl, msg);
-              } catch {}
-            }
-          });
-          read();
-        });
-      }
-      read();
-    }).catch(e => appendLog(logEl, 'Error: ' + e.message));
-    return;
-  }
-
-  const es = new EventSource(url, {withCredentials: false});
-  activeEventSource = es;
-
-  // For POST-only endpoints, use fetch
-  const postEndpoints = ['fiverr_orders','fiverr_reviews','fiverr_test','cleanup','cleanup_orphans','memory',
-                         'anomaly','prompt_evolution','reporting','performance','publisher',
-                         'scout','fiverr_scout','design','qa'];
-  if (postEndpoints.includes(agent)) {
-    es.close();
-    fetch(`/run/${agent}`, {method:'POST'}).then(async r => {
-      const reader = r.body.getReader();
-      const decoder = new TextDecoder();
-      function read() {
-        reader.read().then(({ done, value }) => {
-          if (done) return;
-          const text = decoder.decode(value);
-          text.split('\n').forEach(line => {
-            if (line.startsWith('data: ')) {
-              try { appendLog(logEl, JSON.parse(line.slice(6))); } catch {}
-            }
-          });
-          read();
-        });
-      }
-      read();
-    }).catch(e => appendLog(logEl, 'Error: ' + e.message));
-    return;
-  }
-
-  es.onmessage = e => {
-    try { appendLog(logEl, JSON.parse(e.data)); } catch { appendLog(logEl, e.data); }
-  };
-  es.onerror = () => { es.close(); appendLog(logEl, '--- Connection closed ---'); };
-}
-
-function appendLog(logEl, msg) {
-  if (!logEl) return;
-  const line = document.createElement('div');
-  line.className = 'log-line' + (msg.startsWith?.('__DONE__') ? ' done' : msg.toLowerCase?.().includes('error') ? ' err' : '');
-  line.textContent = msg;
-  logEl.appendChild(line);
-  logEl.scrollTop = logEl.scrollHeight;
-}
-
-// ─── Lightbox ─────────────────────────────────────────────────────────────────
-function openLightbox(url) {
-  document.getElementById('lightbox-img').src = url;
-  document.getElementById('lightbox').classList.add('open');
-}
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-  document.getElementById('lightbox-img').src = '';
-}
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
-
-// ─── Status bar ───────────────────────────────────────────────────────────────
-
-const AGENT_LABELS = {
-  research:         'Research',
-  design:           'Design',
-  qa:               'QA',
-  publisher:        'Publisher',
-  cleanup:          'Cleanup',
-  scout:            'Scout',
-  fiverr_scout:     'FV Scout',
-  fiverr_orders:    'FV Orders',
-  fiverr_reviews:   'FV Reviews',
-  fiverr_test:      'FV Test',
-  memory:           'Memory',
-  anomaly:          'Anomaly',
-  prompt_evolution: 'Prompts',
-  reporting:        'Report',
-  performance:      'Perf',
-};
-
-const FADE_MS = 10 * 60 * 1000;  // pills fade after 10 min complete
-
-function renderStatusBar(data) {
-  if (!data) return;
-
-  const now    = Date.now();
-  const spend  = data.__spend__?.month_spend ?? 0;
-  const cap    = data.__spend__?.spend_cap   ?? 10;
-
-  // ── Spend (right side) ──────────────────────────────────────────────────
-  document.getElementById('sb-spend-text').textContent = '$' + spend.toFixed(2);
-  document.getElementById('sb-cap-text').textContent   = '/ $' + cap.toFixed(2);
-  const pct  = Math.min(100, (spend / cap) * 100);
-  const fill = document.getElementById('sb-spend-fill');
-  fill.style.width      = pct + '%';
-  fill.style.background = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--yellow)' : 'var(--green)';
-
-  // ── Pills (left side) ───────────────────────────────────────────────────
-  const agents = Object.entries(data)
-    .filter(([k]) => k !== '__spend__')
-    .map(([, v]) => v)
-    .filter(a => {
-      if (!a.started_at) return false;
-      const startedToday = new Date(a.started_at).toDateString() === new Date().toDateString();
-      if (!startedToday) return false;
-      // Fade completed pills that are > FADE_MS old but keep them briefly visible
-      return true;
-    });
-
-  const pillsEl = document.getElementById('sb-pills');
-  pillsEl.innerHTML = agents.map(a => {
-    const label   = AGENT_LABELS[a.name] || a.name;
-    const dotCls  = a.status === 'complete' ? 'sb-dot-green'
-                  : a.status === 'running'  ? 'sb-dot-yellow'
-                  : a.status === 'error'    ? 'sb-dot-red'
-                  : 'sb-dot-gray';
-    const pillCls = ['sb-pill',
-                     a.status === 'running'  ? 'running'  : '',
-                     a.status === 'complete' ? 'complete' : '',
-                     a.status === 'error'    ? 'error'    : '',
-    ].filter(Boolean).join(' ');
-
-    // Fading logic — pill opacity drops after FADE_MS of complete state
-    let fading = '';
-    if (a.status === 'complete' && a.completed_at) {
-      const age = now - new Date(a.completed_at).getTime();
-      if (age > FADE_MS * 0.6) fading = 'fading';  // starts fading at 60%
-    }
-
-    const bar = a.status === 'running'
-      ? `<div class="pill-bar" style="width:${a.progress || 0}%"></div>` : '';
-
-    return `<div class="${pillCls} ${fading}" title="${escHtml(a.current_step || '')}">`
-         + bar
-         + `<span class="sb-dot ${dotCls}"></span>${label}</div>`;
-  }).join('');
-
-  // ── Center — active agent info ──────────────────────────────────────────
-  const running = agents.find(a => a.status === 'running');
-  const centerEl = document.getElementById('sb-center');
-  if (running) {
-    const label = AGENT_LABELS[running.name] || running.name;
-    const step  = running.current_step || 'Running…';
-    centerEl.innerHTML =
-      `<div class="sb-active-dot"></div>`
-    + `<span class="sb-center-text">${escHtml(label)}</span>`
-    + `<span style="color:var(--text3)">—</span>`
-    + `<span class="sb-center-step">${escHtml(step)}</span>`;
-  } else {
-    centerEl.innerHTML = '';
-  }
-}
-
-async function pollStatusBar() {
-  const data = await apiFetch('/agent-status');
-  renderStatusBar(data);
-}
-
-// Start polling immediately and then every 3 s
-pollStatusBar();
-setInterval(pollStatusBar, 3000);
-
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-navigate('overview');
+// ── Init ───────────────────────────────────────────────────────────────────
+(async function init() {
+  await tick();
+  loadOverview();
+  setInterval(tick, 10000);      // activity + status every 10s
+  setInterval(loadOverview, 60000); // overview stats every 60s
+})();
 </script>
 </body>
 </html>

@@ -23,6 +23,18 @@ _status_lock = threading.Lock()
 
 print(f"[server] v2.0 — all endpoints loaded | file: {__file__}")
 
+# ─── Seed activity_log on startup ─────────────────────────────────────────────
+def _seed_activity_log():
+    """Insert one system event so the activity panel is never empty on first load."""
+    try:
+        from core.activity_logger import log_activity
+        log_activity("server", "system", "Dashboard server started")
+    except Exception as e:
+        print(f"[server] activity_log seed skipped: {e}")
+
+# Run in background thread so a missing table never delays startup
+threading.Thread(target=_seed_activity_log, daemon=True).start()
+
 # ─── Agent status tracker ─────────────────────────────────────────────────────
 # Each key is the agent_name string passed to _stream_agent.
 agent_status: dict = {}
@@ -162,7 +174,7 @@ def config():
     return jsonify({
         "supabaseUrl": os.getenv("SUPABASE_URL", ""),
         "supabaseKey": os.getenv("SUPABASE_KEY", ""),
-        "spendCap":    float(os.getenv("MONTHLY_SPEND_CAP", "10")),
+        "spendCap":    float(os.getenv("MONTHLY_SPEND_CAP", "100")),
     })
 
 
@@ -299,9 +311,10 @@ def run_publisher():
 def get_agent_status():
     with _status_lock:
         snapshot = {k: dict(v) for k, v in agent_status.items()}
+    # Always re-read from env so changes to .env take effect without restart
     snapshot["__spend__"] = {
         "month_spend": _get_cached_spend(),
-        "spend_cap":   float(os.getenv("MONTHLY_SPEND_CAP", "10")),
+        "spend_cap":   float(os.getenv("MONTHLY_SPEND_CAP", "100")),
     }
     return jsonify(snapshot)
 
@@ -335,7 +348,7 @@ def stats():
             "approved_today":     appr,
             "rejected_today":     rej,
             "month_spend":        spend,
-            "spend_cap":          float(os.getenv("MONTHLY_SPEND_CAP", "10")),
+            "spend_cap":          float(os.getenv("MONTHLY_SPEND_CAP", "100")),
             "listings_published": pubs,
             "week_revenue":       week_revenue,
             "week_net":           week_net,
@@ -627,7 +640,7 @@ def finance():
             "weekly":      weekly_pnl,
             "all_time":    all_time_pnl,
             "month_spend": month_spend,
-            "spend_cap":   float(os.getenv("MONTHLY_SPEND_CAP", "10")),
+            "spend_cap":   float(os.getenv("MONTHLY_SPEND_CAP", "100")),
             "by_agent":    by_agent,
             "expenses":    expenses,
         })
@@ -819,6 +832,110 @@ def ignore_proposal_route():
         return jsonify({"ok": True, "status": row.get("status")})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ─── Scheduler conditions ─────────────────────────────────────────────────────
+
+def _conditions_with_timeout(timeout_s: float = 3.0) -> dict:
+    """
+    Run each condition check in the same thread but wrap every individual call
+    in try/except so one slow or broken check never blocks the whole endpoint.
+    Falls back to should_run=True with an error reason if a check throws.
+    """
+    import concurrent.futures
+    from core import scheduler_conditions as sc
+
+    checks = {
+        "research":         sc.check_research,
+        "design":           sc.check_design,
+        "publisher":        sc.check_publisher,
+        "fiverr_orders":    sc.check_fiverr_orders,
+        "performance":      sc.check_performance,
+        "memory":           sc.check_memory,
+        "anomaly":          sc.check_anomaly,
+        "scout":            sc.check_scout,
+        "reporting":        sc.check_reporting,
+        "prompt_evolution": sc.check_prompt_evolution,
+    }
+
+    result: dict = {}
+
+    # Run all checks in a thread pool with a shared deadline
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(fn): name for name, fn in checks.items()}
+        done, _ = concurrent.futures.wait(futures, timeout=timeout_s)
+
+        for fut, name in futures.items():
+            if fut in done:
+                try:
+                    result[name] = fut.result()
+                except Exception as e:
+                    result[name] = {
+                        "should_run": True,
+                        "reason":     f"check error: {e}",
+                        "extra":      {},
+                    }
+            else:
+                # Timed out
+                result[name] = {
+                    "should_run": True,
+                    "reason":     "condition check timed out — running to be safe",
+                    "extra":      {},
+                }
+
+    from datetime import datetime, timezone
+    result["_checked_at"] = datetime.now(timezone.utc).isoformat()
+    return result
+
+
+@app.route("/scheduler/conditions")
+def scheduler_conditions():
+    try:
+        return jsonify(_conditions_with_timeout(3.0))
+    except Exception as e:
+        return jsonify({"error": str(e), "_checked_at": datetime.now(timezone.utc).isoformat()}), 500
+
+
+# ─── Activity log ──────────────────────────────────────────────────────────────
+
+@app.route("/activity")
+def activity_log():
+    limit      = min(int(request.args.get("limit", 50)), 200)
+    event_type = request.args.get("event_type", "")
+    try:
+        q = (
+            supabase.table("activity_log")
+            .select("*")
+            .order("created_at", desc=True)
+            .limit(limit)
+        )
+        if event_type:
+            q = q.eq("event_type", event_type)
+        return jsonify(_safe_data(q))
+    except Exception as e:
+        return jsonify([])
+
+
+# ─── Notifications (derived from activity_log) ────────────────────────────────
+
+_NOTIFICATION_TYPES = {"error", "proposal_found", "order_received", "sale"}
+
+@app.route("/notifications")
+def notifications():
+    """Return recent alert-worthy activity entries (last 24 h, max 20)."""
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    try:
+        rows = _safe_data(
+            supabase.table("activity_log")
+            .select("*")
+            .in_("event_type", list(_NOTIFICATION_TYPES))
+            .gte("created_at", since)
+            .order("created_at", desc=True)
+            .limit(20)
+        )
+        return jsonify(rows)
+    except Exception:
+        return jsonify([])
 
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────

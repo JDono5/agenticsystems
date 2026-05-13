@@ -46,9 +46,10 @@ import core.memory_client as memory_client
 # Import design_agent internals (no circular dep — evolution agent never imported by design_agent)
 import agents.design_agent as design_agent
 
+ROOT                = Path(__file__).parent.parent
 AGENT_NAME          = "prompt_evolution_agent"
 ANTHROPIC_MODEL     = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
-LOG_FILE            = Path(__file__).parent.parent / "prompt_evolution_log.txt"
+LOG_FILE            = ROOT / "prompt_evolution_log.txt"
 DESIGN_AGENT_PATH   = Path(__file__).parent / "design_agent.py"
 
 PASS_RATE_THRESHOLD = 0.50     # below this triggers evaluation
@@ -195,7 +196,7 @@ def _test_angle(
     reasons = []
     prompt  = _build_test_prompt(occupation, angle_text, keyword)
 
-    test_dir = Path("designs") / "evolution-tests" / str(uuid.uuid4())[:8]
+    test_dir = ROOT / "designs" / "evolution-tests" / str(uuid.uuid4())[:8]
     test_dir.mkdir(parents=True, exist_ok=True)
 
     for trial in range(n_trials):
