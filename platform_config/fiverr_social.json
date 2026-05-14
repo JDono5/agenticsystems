@@ -1,0 +1,11 @@
+{
+  "gig_type": "social_media",
+  "package_tiers": {
+    "basic":    {"price": 15, "deliverables": 3,  "revisions": 1},
+    "standard": {"price": 35, "deliverables": 8,  "revisions": 2},
+    "premium":  {"price": 65, "deliverables": 20, "revisions": 3}
+  },
+  "image_size": "1024x1024",
+  "platform": "instagram",
+  "delivery_format": "PNG"
+}

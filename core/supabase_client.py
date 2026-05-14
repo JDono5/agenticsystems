@@ -77,7 +77,13 @@ def update_design_status(design_id: str, status: str, reason: str = "") -> None:
     payload: dict = {"status": status}
     if reason:
         payload["qa_reason"] = reason
-    supabase.table("designs").update(payload).eq("id", design_id).execute()
+    print(f"[supabase] update_design_status id={design_id[:8]} status={status}", flush=True)
+    result = supabase.table("designs").update(payload).eq("id", design_id).execute()
+    rows = result.data if result.data else []
+    if rows:
+        print(f"[supabase]   -> updated {len(rows)} row(s), new status={rows[0].get('status')}", flush=True)
+    else:
+        print(f"[supabase]   -> WARNING: 0 rows updated — id may not exist or RLS is blocking", flush=True)
 
 
 # ─── listings ─────────────────────────────────────────────────────────────────

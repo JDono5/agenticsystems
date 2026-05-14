@@ -25,8 +25,8 @@ load_dotenv()
 AGENT_NAME      = "design_agent"
 IMAGE_MODEL     = "gpt-image-1"
 VISION_MODEL    = "gpt-4o"
-TARGET_APPROVED = 8          # designs we want approved per run
-MAX_ATTEMPTS    = 24         # hard ceiling (3× target) to avoid runaway spend
+TARGET_APPROVED = 4          # designs we want approved per run
+MAX_ATTEMPTS    = 12         # hard ceiling (3× target) to avoid runaway spend
 
 # gpt-image-1 high quality, 1024×1024 — $0.040/image
 COST_PER_IMAGE = 0.040
@@ -91,20 +91,29 @@ You are a brutally honest quality control reviewer for a gift mug store. Your jo
 anything that would make a customer think 'something looks off' or 'this doesn't make sense'. \
 You are not lenient. If something is wrong, fail it.
 
+Before evaluating anything else, scan all four edges of the image. If anything touches or crosses \
+any edge, fail immediately without evaluating the rest.
+
 AUTOMATIC HARD FAILS — fail immediately on any of these:
 
-FRAME/CROP: Any element cut off at the edge. Text or illustration that bleeds outside the canvas. \
-Anything that looks like it should extend further but got cropped.
-BACKGROUND: Obvious non-white background — dark backgrounds, colored backgrounds, heavy \
-gradients, or clearly transparent/checkered patterns. Do NOT fail for slight off-white, cream, \
-or warm white tones — these are acceptable. Only fail if the background is obviously not \
-intended to be white.
-TEXT NONSENSE: Text that does not form a grammatically correct English sentence or phrase. \
-Gibberish words. Text that does not make logical sense when read aloud.
+FRAME/CROP: Examine ALL four edges of the image carefully. If ANY text, illustration, or design \
+element is cut off or touching any edge — top, bottom, left, or right — FAIL immediately. Pay \
+special attention to the bottom edge where text is commonly cut off. A design where the last line \
+of text runs to the bottom edge or is partially visible is a hard fail. The entire design including \
+all text must have clear visible margin from all four edges.
+BACKGROUND: Only fail if background is clearly dark gray, colored, or has visible pattern or \
+texture. Cream, off-white, and warm white all pass. Only fail if the background is obviously \
+not intended to be white.
+TEXT NONSENSE: Only fail if a word is actually misspelled or the text is completely incoherent. \
+Intentionally funny, self-deprecating, or incomplete phrases are valid mug text and should PASS. \
+Examples that should PASS: "I'm Almost an Engineer", "Let's Just Assume I'm Always Right", \
+"I Have No Idea What I'm Doing". Only fail if text is genuinely gibberish or a word is misspelled.
 VISUAL MISMATCH: The illustration and text are unrelated. Example: text says electrician but \
 image shows a chef. The visual must match what the text says.
-OCCUPATION MISMATCH: The tools, uniform, or imagery shown do not match the occupation in the \
-text. An electrician should have electrical tools not random objects.
+OCCUPATION MISMATCH: Only fail if the imagery is from a completely different profession. \
+Calipers, blueprints, bolts, nuts, wrenches, gears, hard hats, safety glasses, circuit boards, \
+and technical drawings are all valid for engineering and adjacent trades. Do not fail for any \
+tool that could plausibly appear in an engineering or trade context.
 BROKEN ANATOMY: Extra limbs, wrong number of fingers, distorted or melted faces, body parts \
 that do not connect properly.
 REAL PERSON RESEMBLANCE: Any person who looks like a recognizable celebrity, YouTuber, or \
@@ -272,7 +281,9 @@ def save_to_disk(
     }
     (output_dir / f"{image_uuid}.json").write_text(json.dumps(meta, indent=2))
 
-    return str(image_path), image_uuid
+    # Store relative path so Supabase file_path matches the /designs endpoint key lookup.
+    rel_path = str(image_path.relative_to(ROOT)).replace("\\", "/")
+    return rel_path, image_uuid
 
 
 # ─── Main entry point ─────────────────────────────────────────────────────────
@@ -285,16 +296,16 @@ def run_design(target: int = TARGET_APPROVED, max_attempts: int = MAX_ATTEMPTS, 
     print(f"[{AGENT_NAME}] Target: {target} approved designs, max {max_attempts} attempts")
 
     if not os.getenv("OPENAI_API_KEY"):
-        print(f"[{AGENT_NAME}] OPENAI_API_KEY is not set — exiting.")
+        print(f"[{AGENT_NAME}] OPENAI_API_KEY is not set - exiting.")
         return
 
     if not check_cap():
-        print(f"[{AGENT_NAME}] Spend cap reached — exiting.")
+        print(f"[{AGENT_NAME}] Spend cap reached - exiting.")
         return
 
     brief = get_latest_brief()
     if not brief:
-        print(f"[{AGENT_NAME}] No research brief found — run research_agent first.")
+        print(f"[{AGENT_NAME}] No research brief found - run research_agent first.")
         return
 
     brief_id  = brief["id"]
@@ -324,7 +335,7 @@ def run_design(target: int = TARGET_APPROVED, max_attempts: int = MAX_ATTEMPTS, 
             agent_name=AGENT_NAME,
         )
         if not image_bytes:
-            print(f"[{AGENT_NAME}]   Generation failed — skipping.")
+            print(f"[{AGENT_NAME}]   Generation failed - skipping.")
             last_rejection = "image generation failed"
             continue
 
@@ -354,7 +365,7 @@ def run_design(target: int = TARGET_APPROVED, max_attempts: int = MAX_ATTEMPTS, 
             agent_name=AGENT_NAME,
         )
         if qa_result is None:
-            print(f"[{AGENT_NAME}]   QA call failed — marking as generated for manual review.")
+            print(f"[{AGENT_NAME}]   QA call failed - saving as generated for qa_agent review.")
             save_design({
                 "brief_id": brief_id,
                 "file_path": file_path,
@@ -381,38 +392,41 @@ def run_design(target: int = TARGET_APPROVED, max_attempts: int = MAX_ATTEMPTS, 
         )
         total_cost += qa_cost
 
-        final_status = "approved" if passed_qa else "rejected"
+        # Save as 'generated' regardless of inline QA result.
+        # The standalone qa_agent makes the final approved/rejected determination.
+        # Inline QA is used only to drive the adaptive loop (approved counter).
         save_design({
             "brief_id": brief_id,
             "file_path": file_path,
             "prompt_used": prompt,
             "generation_cost": COST_PER_IMAGE,
-            "status": final_status,
-            "qa_reason": reason,
+            "status": "generated",
+            "qa_reason": reason,   # inline QA note; qa_agent will overwrite
             "platform": platform,
             "niche": sub_niche,
         })
 
         verdict = "PASS" if passed_qa else "FAIL"
-        print(f"[{AGENT_NAME}]   {verdict} — {reason} (img ${COST_PER_IMAGE:.3f} + qa ${qa_cost:.6f})")
+        print(f"[{AGENT_NAME}]   inline QA {verdict} - {reason} (img ${COST_PER_IMAGE:.3f} + qa ${qa_cost:.6f})")
 
         if passed_qa:
             approved += 1
             last_rejection = ""
         else:
             rejected += 1
-            # Prefer suggested_fix for the next attempt — it's more actionable
+            # Prefer suggested_fix for the next attempt - it is more actionable
             last_rejection = qa_result.get("suggested_fix") or reason
 
     # --- Summary ---
     exhausted = attempts >= max_attempts and approved < target
     print(
         f"\n[{AGENT_NAME}] --- Run complete ---\n"
-        f"[{AGENT_NAME}]   Approved : {approved}\n"
-        f"[{AGENT_NAME}]   Rejected : {rejected}\n"
-        f"[{AGENT_NAME}]   Attempts : {attempts}/{max_attempts}\n"
-        f"[{AGENT_NAME}]   Cost     : ${total_cost:.4f}\n"
-        + (f"[{AGENT_NAME}]   WARNING  : hit attempt ceiling before reaching {target} approvals"
+        f"[{AGENT_NAME}]   Inline QA passed : {approved} (saved as 'generated' for qa_agent)\n"
+        f"[{AGENT_NAME}]   Inline QA failed : {rejected}\n"
+        f"[{AGENT_NAME}]   Total attempts   : {attempts}/{max_attempts}\n"
+        f"[{AGENT_NAME}]   Cost             : ${total_cost:.4f}\n"
+        + (f"[{AGENT_NAME}]   WARNING: hit attempt ceiling before reaching {target} inline passes "
+           f"(increase max_attempts or check prompt quality)"
            if exhausted else "")
     )
 

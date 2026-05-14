@@ -117,8 +117,9 @@ def check_research() -> dict:
 
 def check_design() -> dict:
     """
-    Skip design if 8+ approved unpublished designs exist or spend > 80%.
-    Returns extra.reduced_target=4 if 4–7 approved designs exist.
+    Skip design if 4+ approved unpublished designs exist or spend > 80%.
+    Returns extra.reduced_target=2 if 2-3 approved designs are already queued.
+    Goal: 4 high-quality designs per day maximum (quality over quantity).
     """
     try:
         approved = _safe_count(
@@ -128,7 +129,7 @@ def check_design() -> dict:
             .eq("platform", "etsy")
         )
 
-        if approved >= 8:
+        if approved >= 4:
             return {
                 "should_run": False,
                 "reason": f"{approved} approved unpublished designs already queued — no more needed",
@@ -143,22 +144,20 @@ def check_design() -> dict:
                 "extra": {"spend_pct": round(spend_pct, 3)},
             }
 
-        reduced_target = None
-        if 4 <= approved < 8:
-            reduced_target = 4
+        if 2 <= approved < 4:
             return {
                 "should_run": True,
-                "reason": f"{approved} approved designs queued — running with reduced target of 4",
+                "reason": f"{approved} approved designs queued — running with reduced target of 2",
                 "extra": {
                     "approved_unpublished": approved,
-                    "reduced_target": reduced_target,
+                    "reduced_target": 2,
                     "spend_pct": round(spend_pct, 3),
                 },
             }
 
         return {
             "should_run": True,
-            "reason": f"{approved} approved designs queued, spend at {spend_pct*100:.0f}% — running full target",
+            "reason": f"{approved} approved designs queued, spend at {spend_pct*100:.0f}% — running full target of 4",
             "extra": {"approved_unpublished": approved, "spend_pct": round(spend_pct, 3)},
         }
     except Exception as e:
@@ -170,15 +169,19 @@ def check_publisher() -> dict:
     Skip publisher if:
     - No approved unpublished designs exist
     - DRAFT_MODE=true and 10+ draft listings pending review
-    - ETSY_ACCESS_TOKEN is blank
+    - PRINTIFY_API_KEY or PRINTIFY_SHOP_ID is blank
     """
     try:
-        etsy_token = os.getenv("ETSY_ACCESS_TOKEN", "").strip()
-        if not etsy_token:
+        printify_key = os.getenv("PRINTIFY_API_KEY", "").strip()
+        printify_shop = os.getenv("PRINTIFY_SHOP_ID", "").strip()
+        if not printify_key or not printify_shop:
+            missing = []
+            if not printify_key:  missing.append("PRINTIFY_API_KEY")
+            if not printify_shop: missing.append("PRINTIFY_SHOP_ID")
             return {
                 "should_run": False,
-                "reason": "ETSY_ACCESS_TOKEN not configured — Etsy publisher unavailable",
-                "extra": {"etsy_configured": False},
+                "reason": f"{', '.join(missing)} not configured — Printify publisher unavailable",
+                "extra": {"printify_configured": False},
             }
 
         approved = _safe_count(

@@ -66,6 +66,7 @@ def guarded(fn, name: str, condition_fn=None, *args):
             return
 
         # ── 2. Per-agent condition ─────────────────────────────────────────────
+        extra_kwargs: dict = {}
         if condition_fn is not None:
             try:
                 cond = condition_fn()
@@ -78,10 +79,17 @@ def guarded(fn, name: str, condition_fn=None, *args):
                 log_activity(name, "system", f"Skipped: {reason}")
                 return
 
+            # If the condition specified a reduced_target (e.g. design_agent with
+            # designs already queued), pass it through so the agent runs lighter.
+            reduced = cond.get("extra", {}).get("reduced_target")
+            if reduced is not None:
+                extra_kwargs["target"]       = int(reduced)
+                extra_kwargs["max_attempts"] = int(reduced) * 3
+
         # ── 3. Run with error handling ─────────────────────────────────────────
         log_activity(name, "system", f"{name} started")
         try:
-            result = fn(*args) if args else fn()
+            result = fn(*args, **extra_kwargs) if (args or extra_kwargs) else fn()
             logging.info(f"[{name}] complete: {result}")
             log_activity(name, "system", f"{name} completed: {result}")
         except Exception as e:
@@ -154,7 +162,7 @@ scheduler.add_job(
 )
 scheduler.add_job(
     fiverr_check,
-    "cron", hour="*/4", minute=0,
+    "interval", minutes=15,
 )
 scheduler.add_job(
     guarded(run_memory, "memory_agent", conditions.check_memory),
@@ -201,5 +209,6 @@ if __name__ == "__main__":
     logging.info("[scheduler] Autonomous Income Engine starting — America/Chicago timezone")
     logging.info("[scheduler] Jobs registered:")
     for job in scheduler.get_jobs():
-        logging.info(f"  {job.id} -> next run: {job.next_run_time}")
+        next_run = getattr(job, "next_run_time", "pending")
+        logging.info(f"  {job.id} -> next run: {next_run}")
     scheduler.start()

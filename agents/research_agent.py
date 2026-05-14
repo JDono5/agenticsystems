@@ -126,37 +126,80 @@ def _fetch_mock_fiverr(query: str) -> list[dict]:
     return listings
 
 
-# ─── Etsy API fetch ───────────────────────────────────────────────────────────
+# ─── Etsy public scraper (no API key required) ────────────────────────────────
+#
+# This scraper uses Playwright to fetch public Etsy search result pages —
+# exactly the same pages any browser visitor would see. No Etsy API credentials,
+# no developer app approval, and no OAuth tokens are required or used.
+# It reads publicly visible listing titles, prices, favourite counts, and tags
+# from etsy.com/search the same way a human browsing the site would.
 
-def _fetch_etsy_listings(query: str, limit: int = 20) -> list[dict]:
-    """Pull active Etsy listings via Open API v3 (requires ETSY_API_KEY)."""
-    api_key = os.getenv("ETSY_API_KEY", "")
-    if not api_key:
-        raise EnvironmentError("ETSY_API_KEY not set")
+def _scrape_etsy(query: str, limit: int = 20) -> list[dict]:
+    """
+    Scrape Etsy search results from public pages using Playwright.
+    No API key needed — reads the same HTML any browser would see.
+    Falls back gracefully and returns an empty list on any failure.
+    """
+    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-    resp = requests.get(
-        "https://openapi.etsy.com/v3/application/listings/active",
-        params={"keywords": query, "limit": limit, "sort_on": "score", "sort_order": "desc"},
-        headers={"x-api-key": api_key},
-        timeout=15,
-    )
-    resp.raise_for_status()
+    url = f"https://www.etsy.com/search?q={requests.utils.quote(query)}&explicit=1"
+    print(f"[{AGENT_NAME}]   Scraping Etsy (public): {url}")
 
     listings = []
-    for item in resp.json().get("results", []):
-        price_obj = item.get("price", {})
-        try:
-            price = f"${price_obj['amount'] / price_obj['divisor']:.2f}"
-        except (KeyError, ZeroDivisionError, TypeError):
-            price = "N/A"
-        listings.append({
-            "title":        item.get("title", ""),
-            "price":        price,
-            "review_count": str(item.get("num_favorers", "N/A")),
-            "tags":         item.get("tags", []),
-        })
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            ctx = browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                )
+            )
+            page = ctx.new_page()
+            page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+            page.wait_for_timeout(2500)
 
-    print(f"[{AGENT_NAME}]   Etsy API: {len(listings)} listings for '{query}'")
+            # Each result card sits inside a <li> with a data-palette-listing-id attr
+            cards = page.query_selector_all("li[data-palette-listing-id]")
+            if not cards:
+                # Fallback selector for A/B layout variants
+                cards = page.query_selector_all("[data-listing-id]")
+
+            for card in cards[:limit]:
+                try:
+                    title_el = (
+                        card.query_selector("h3")
+                        or card.query_selector("[class*='listing-title']")
+                        or card.query_selector("a[title]")
+                    )
+                    title = title_el.inner_text().strip() if title_el else ""
+                    if not title and title_el:
+                        title = title_el.get_attribute("title") or ""
+
+                    price_el = card.query_selector("[class*='currency-value'], [class*='price']")
+                    price = f"${price_el.inner_text().strip()}" if price_el else "N/A"
+
+                    fav_el = card.query_selector("[class*='favorite'], [class*='heart']")
+                    favs = re.sub(r"[^\d]", "", fav_el.inner_text()) if fav_el else "0"
+
+                    if title:
+                        listings.append({
+                            "title":        title,
+                            "price":        price,
+                            "review_count": favs or "0",
+                            "tags":         [],
+                        })
+                except Exception:
+                    continue
+
+            browser.close()
+    except PWTimeout:
+        print(f"[{AGENT_NAME}]   Etsy scrape timed out — no results")
+    except Exception as e:
+        print(f"[{AGENT_NAME}]   Etsy scrape error: {e}")
+
+    print(f"[{AGENT_NAME}]   Scraped {len(listings)} Etsy listings for '{query}'")
     return listings
 
 
@@ -224,7 +267,7 @@ def _scrape_fiverr(query: str, limit: int = 20) -> list[dict]:
 
             browser.close()
     except PWTimeout:
-        print(f"[{AGENT_NAME}]   Fiverr scrape timed out — no results")
+        print(f"[{AGENT_NAME}]   Fiverr scrape timed out - no results")
     except Exception as e:
         print(f"[{AGENT_NAME}]   Fiverr scrape error: {e}")
 
@@ -326,7 +369,7 @@ def _generate_brief(platform: str, query: str, listings: list[dict]) -> dict:
         "recommended_design_direction": data.get("recommended_design_direction", ""),
     }
 
-    print(f"[{AGENT_NAME}]   Brief generated — sub_niche: '{brief['sub_niche']}' — cost ${cost:.6f}")
+    print(f"[{AGENT_NAME}]   Brief generated - sub_niche: '{brief['sub_niche']}' - cost ${cost:.6f}")
     return brief
 
 
@@ -345,7 +388,7 @@ def run(platform: str = "etsy") -> list[dict]:
     )
 
     if not check_cap():
-        print(f"[{AGENT_NAME}] Spend cap reached — exiting.")
+        print(f"[{AGENT_NAME}] Spend cap reached - exiting.")
         return []
 
     # Load platform config
@@ -360,9 +403,9 @@ def run(platform: str = "etsy") -> list[dict]:
     mock_fiverr = os.getenv("MOCK_FIVERR", "false").lower() == "true"
 
     if platform == "etsy" and mock_etsy:
-        print(f"[{AGENT_NAME}] MOCK_ETSY=true — using sample data")
+        print(f"[{AGENT_NAME}] MOCK_ETSY=true - using sample data")
     if platform == "fiverr" and mock_fiverr:
-        print(f"[{AGENT_NAME}] MOCK_FIVERR=true — using sample data")
+        print(f"[{AGENT_NAME}] MOCK_FIVERR=true - using sample data")
 
     saved_briefs: list[dict] = []
 
@@ -375,8 +418,8 @@ def run(platform: str = "etsy") -> list[dict]:
                 listings = _fetch_mock_etsy(query)
             else:
                 listings = api_call_with_retry(
-                    lambda q=query: _fetch_etsy_listings(q),
-                    max_retries=3,
+                    lambda q=query: _scrape_etsy(q),
+                    max_retries=2,
                     agent_name=AGENT_NAME,
                 )
         else:  # fiverr
@@ -390,7 +433,7 @@ def run(platform: str = "etsy") -> list[dict]:
                 )
 
         if not listings:
-            print(f"[{AGENT_NAME}]   No listings returned — skipping.")
+            print(f"[{AGENT_NAME}]   No listings returned - skipping.")
             continue
 
         # Step 2: generate brief via Claude
@@ -400,7 +443,7 @@ def run(platform: str = "etsy") -> list[dict]:
             agent_name=AGENT_NAME,
         )
         if not brief:
-            print(f"[{AGENT_NAME}]   Brief generation failed — skipping.")
+            print(f"[{AGENT_NAME}]   Brief generation failed - skipping.")
             continue
 
         # Step 3: save to Supabase
@@ -410,7 +453,7 @@ def run(platform: str = "etsy") -> list[dict]:
             agent_name=AGENT_NAME,
         )
         if saved:
-            print(f"[{AGENT_NAME}]   Saved — id: {saved['id']}")
+            print(f"[{AGENT_NAME}]   Saved - id: {saved['id']}")
             saved_briefs.append(saved)
 
             # Step 4: enqueue research_complete job (graceful — table may not exist yet)

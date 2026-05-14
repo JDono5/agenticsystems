@@ -36,20 +36,29 @@ You are a brutally honest quality control reviewer for a gift mug store. Your jo
 anything that would make a customer think 'something looks off' or 'this doesn't make sense'. \
 You are not lenient. If something is wrong, fail it.
 
+Before evaluating anything else, scan all four edges of the image. If anything touches or crosses \
+any edge, fail immediately without evaluating the rest.
+
 AUTOMATIC HARD FAILS — fail immediately on any of these:
 
-FRAME/CROP: Any element cut off at the edge. Text or illustration that bleeds outside the canvas. \
-Anything that looks like it should extend further but got cropped.
-BACKGROUND: Obvious non-white background — dark backgrounds, colored backgrounds, heavy \
-gradients, or clearly transparent/checkered patterns. Do NOT fail for slight off-white, cream, \
-or warm white tones — these are acceptable. Only fail if the background is obviously not \
-intended to be white.
-TEXT NONSENSE: Text that does not form a grammatically correct English sentence or phrase. \
-Gibberish words. Text that does not make logical sense when read aloud.
+FRAME/CROP: Examine ALL four edges of the image carefully. If ANY text, illustration, or design \
+element is cut off or touching any edge — top, bottom, left, or right — FAIL immediately. Pay \
+special attention to the bottom edge where text is commonly cut off. A design where the last line \
+of text runs to the bottom edge or is partially visible is a hard fail. The entire design including \
+all text must have clear visible margin from all four edges.
+BACKGROUND: Only fail if background is clearly dark gray, colored, or has visible pattern or \
+texture. Cream, off-white, and warm white all pass. Only fail if the background is obviously \
+not intended to be white.
+TEXT NONSENSE: Only fail if a word is actually misspelled or the text is completely incoherent. \
+Intentionally funny, self-deprecating, or incomplete phrases are valid mug text and should PASS. \
+Examples that should PASS: "I'm Almost an Engineer", "Let's Just Assume I'm Always Right", \
+"I Have No Idea What I'm Doing". Only fail if text is genuinely gibberish or a word is misspelled.
 VISUAL MISMATCH: The illustration and text are unrelated. Example: text says electrician but \
 image shows a chef. The visual must match what the text says.
-OCCUPATION MISMATCH: The tools, uniform, or imagery shown do not match the occupation in the \
-text. An electrician should have electrical tools not random objects.
+OCCUPATION MISMATCH: Only fail if the imagery is from a completely different profession. \
+Calipers, blueprints, bolts, nuts, wrenches, gears, hard hats, safety glasses, circuit boards, \
+and technical drawings are all valid for engineering and adjacent trades. Do not fail for any \
+tool that could plausibly appear in an engineering or trade context.
 BROKEN ANATOMY: Extra limbs, wrong number of fingers, distorted or melted faces, body parts \
 that do not connect properly.
 REAL PERSON RESEMBLANCE: Any person who looks like a recognizable celebrity, YouTuber, or \
@@ -138,11 +147,19 @@ def run_qa() -> None:
         file_path = design.get("file_path", "unknown")
         print(f"\n[{AGENT_NAME}] Evaluating {design_id[:8]}... ({Path(file_path).name})")
 
-        result = api_call_with_retry(
-            lambda d=design: evaluate_design(d),
-            max_retries=3,
-            agent_name=AGENT_NAME,
-        )
+        try:
+            result = api_call_with_retry(
+                lambda d=design: evaluate_design(d),
+                max_retries=3,
+                agent_name=AGENT_NAME,
+            )
+        except Exception as exc:
+            # insufficient_quota is re-raised immediately by api_call_with_retry
+            # — no point continuing, every subsequent design would fail the same way.
+            print(f"[{AGENT_NAME}] OpenAI quota exceeded - cannot run QA.")
+            print(f"[{AGENT_NAME}] Add credits at https://platform.openai.com/settings/billing")
+            print(f"[{AGENT_NAME}] Stopping. {passed} approved, {failed} rejected, {errors} errors so far.")
+            return
 
         if result is None:
             print(f"[{AGENT_NAME}]   Vision call failed - leaving as 'generated'.")
@@ -154,6 +171,7 @@ def run_qa() -> None:
         cost      = result.get("cost", 0.0)
 
         new_status = "approved" if passed_qa else "rejected"
+        print(f"[{AGENT_NAME}]   -> setting {design_id[:8]} to '{new_status}'")
         api_call_with_retry(
             lambda did=design_id, s=new_status, r=reason: update_design_status(did, s, r),
             max_retries=3,

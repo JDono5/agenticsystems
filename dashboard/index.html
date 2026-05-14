@@ -6,640 +6,780 @@
 <title>Agentic Income Engine</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.6.0/dist/tabler-icons.min.css">
 <style>
-/* ── Reset & base ───────────────────────────────────────────────────────── */
+/* ── RESET + VARS ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0A0A0A;--s1:#111;--s2:#1A1A1A;--s3:#222;--s4:#2a2a2a;
+  --bg:#0A0A0A;--s1:#111111;--s2:#141414;--s3:#1a1a1a;--s4:#222222;
   --acc:#C8FF00;--acc2:#a8d900;
-  --text1:#F0F0F0;--text2:#AAA;--text3:#666;
-  --green:#4caf50;--yellow:#ffc107;--red:#f44336;--blue:#2196f3;--purple:#9c27b0;
-  --sidebar-w:200px;--activity-w:280px;--strip-h:72px;
+  --text1:#F0F0F0;--text2:#888;--text3:#555;
+  --green:#4caf50;--yellow:#ffc107;--red:#ef4444;--blue:#2196f3;
+  --etsy-color:#f56400;--fv-color:#1dbf73;
 }
 html,body{height:100%;background:var(--bg);color:var(--text1);font-family:'Inter',system-ui,sans-serif;font-size:13px;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+#app{position:relative;display:flex;flex-direction:column;height:100vh;z-index:1}
 
-/* ── Layout ─────────────────────────────────────────────────────────────── */
-#app{display:flex;flex-direction:column;height:100vh}
-.header{flex-shrink:0;height:48px;background:var(--s1);border-bottom:1px solid #222;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:100}
-.layout{display:flex;flex:1;overflow:hidden}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--s1);border-right:1px solid #222;overflow-y:auto;display:flex;flex-direction:column}
-.content{flex:1;overflow-y:auto;padding:20px}
-.activity-panel{width:var(--activity-w);flex-shrink:0;background:var(--s1);border-left:1px solid #222;display:flex;flex-direction:column;overflow:hidden}
-.task-strip{flex-shrink:0;height:var(--strip-h);background:var(--s2);border-top:1px solid #222;display:flex;align-items:center;padding:0 16px;gap:12px;overflow-x:auto}
+/* ── KEYFRAMES ── */
+@keyframes blurIn{from{opacity:0;filter:blur(8px);transform:translateY(5px)}to{opacity:1;filter:blur(0);transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shimmer{from{background-position:-400px 0}to{background-position:400px 0}}
+@keyframes aurora1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-6%,4%) scale(1.1)}}
+@keyframes aurora2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(7%,-4%) scale(1.08)}}
+@keyframes aurora3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-4%,-6%) scale(1.12)}}
+@keyframes beam{from{background-position:200% center}to{background-position:-100% center}}
+@keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(255,193,7,.5)}70%{box-shadow:0 0 0 8px rgba(255,193,7,0)}100%{box-shadow:0 0 0 0 rgba(255,193,7,0)}}
+@keyframes anode-pulse{0%,100%{box-shadow:0 0 4px rgba(255,193,7,.08)}50%{box-shadow:0 0 18px rgba(255,193,7,.28)}}
+@keyframes dot-blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── Header ─────────────────────────────────────────────────────────────── */
-.header-logo{font-size:14px;font-weight:700;color:var(--acc);letter-spacing:.5px;white-space:nowrap}
-.header-logo span{color:var(--text2);font-weight:400}
-.header-spacer{flex:1}
-.header-spend{font-size:11px;color:var(--text3);white-space:nowrap}
-.header-spend b{color:var(--text1)}
-.bell-btn{position:relative;background:none;border:none;color:var(--text2);cursor:pointer;padding:6px;border-radius:6px;font-size:18px;line-height:1}
-.bell-btn:hover{color:var(--text1);background:var(--s3)}
-.bell-badge{position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.blurtext{animation:blurIn .45s ease forwards}
+.shimmer-load{background:linear-gradient(90deg,#1a1a1a 25%,#282828 50%,#1a1a1a 75%)!important;background-size:400px 100%!important;animation:shimmer 1.4s infinite!important;color:transparent!important;border-radius:2px;min-width:36px;display:inline-block;user-select:none}
+
+/* ── TOP BAR ── */
+.topbar{flex-shrink:0;height:64px;background:rgba(9,9,9,.98);border-bottom:1px solid #1a1a1a;display:flex;align-items:center;padding:0 20px;gap:12px;z-index:200;backdrop-filter:blur(8px)}
+.wordmark{font-family:monospace;font-size:16px;font-weight:700;letter-spacing:3px;color:var(--acc);white-space:nowrap;flex-shrink:0;animation:blurIn .5s ease forwards}
+.wordmark small{color:var(--text3);font-size:10px;font-weight:400;letter-spacing:1px;margin-left:5px;vertical-align:middle}
+.stat-pills{display:flex;gap:5px;flex:1;justify-content:center;align-items:center}
+.pill{display:flex;flex-direction:column;align-items:center;background:rgba(18,18,18,.9);border:1px solid #1e1e1e;padding:6px 16px;min-width:96px;cursor:default}
+.pill-lbl{font-size:10px;color:var(--text3);letter-spacing:.4px;text-transform:uppercase}
+.pill-val{font-size:17px;font-weight:700;color:var(--text1);font-variant-numeric:tabular-nums;margin-top:2px}
+.spend-wrap{position:relative}
+.spend-bar{width:100%;height:2px;background:#1a1a1a;margin-top:3px;overflow:hidden}
+.spend-bar-fill{height:100%;background:var(--acc);transition:width .6s}
+.spend-tooltip{display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#0e0e0e;border:1px solid #2a2a2a;padding:10px 14px;min-width:220px;z-index:9999;font-size:11px;line-height:1.9;white-space:nowrap}
+.spend-wrap:hover .spend-tooltip{display:block}
+.st-row{display:flex;justify-content:space-between;gap:20px}
+.st-row span:first-child{color:var(--text2)}
+.st-row span:last-child{color:var(--text1);font-variant-numeric:tabular-nums}
+.st-total{border-top:1px solid #222;margin-top:4px;padding-top:4px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.icon-btn{position:relative;background:none;border:1px solid #1e1e1e;color:var(--text2);width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;transition:all .15s}
+.icon-btn:hover{border-color:var(--acc);color:var(--acc)}
+.bell-badge{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:8px;width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700}
 .bell-badge.hidden{display:none}
-.notif-dropdown{position:absolute;top:48px;right:8px;width:320px;background:var(--s2);border:1px solid var(--s4);border-radius:8px;z-index:200;max-height:400px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.6)}
-.notif-header{padding:10px 14px;border-bottom:1px solid var(--s3);display:flex;align-items:center;justify-content:space-between}
-.notif-header span{font-size:12px;font-weight:600;color:var(--text1)}
-.notif-clear{background:none;border:none;color:var(--acc);font-size:11px;cursor:pointer}
-.notif-item{padding:10px 14px;border-bottom:1px solid #1e1e1e;display:flex;gap:10px;align-items:flex-start}
-.notif-item:last-child{border-bottom:none}
-.notif-icon{font-size:16px;flex-shrink:0;margin-top:1px}
-.notif-body{flex:1}
-.notif-msg{font-size:12px;color:var(--text1);line-height:1.4}
-.notif-time{font-size:10px;color:var(--text3);margin-top:2px}
-.notif-empty{padding:24px;text-align:center;color:var(--text3);font-size:12px}
+.orch-topbtn{background:var(--acc);color:#000;border:none;padding:0 13px;height:36px;font-size:11px;font-weight:800;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s}
+.orch-topbtn:hover{background:var(--acc2)}
+.sched-grp{display:flex;align-items:center;gap:6px;border:1px solid #1e1e1e;padding:4px 8px;background:rgba(16,16,16,.9)}
+.sched-grp-dot{font-size:9px;color:#333}
+.sched-grp-lbl{font-size:10px;color:var(--text3);font-family:monospace}
 
-/* ── Sidebar ─────────────────────────────────────────────────────────────── */
-.sidebar-section{padding:6px 8px 2px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-top:8px}
-.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--text2);transition:.15s;margin:1px 6px;font-size:12px;font-weight:500}
-.nav-item:hover{color:var(--text1);background:var(--s2)}
-.nav-item.active{color:var(--acc);background:rgba(200,255,0,.07);border-left:2px solid var(--acc);padding-left:8px}
-.nav-item i{font-size:16px;flex-shrink:0}
-.sidebar-footer{margin-top:auto;padding:10px;border-top:1px solid #222}
+/* ── VIEWS CONTAINER ── */
+.views-container{flex:1;position:relative;overflow:hidden;min-height:0}
 
-/* ── Activity panel ──────────────────────────────────────────────────────── */
-.activity-header{padding:10px 12px;border-bottom:1px solid #222;font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.activity-list{flex:1;overflow-y:auto;padding:4px 0}
-.act-item{padding:7px 10px;border-bottom:1px solid #161616;display:flex;gap:8px;align-items:flex-start}
-.act-item:hover{background:var(--s2)}
-.act-icon{font-size:15px;flex-shrink:0;margin-top:1px}
-.act-body{flex:1;min-width:0}
-.act-msg{font-size:11px;color:var(--text1);line-height:1.4;word-break:break-word}
-.act-meta{font-size:10px;color:var(--text3);margin-top:1px}
-.act-empty{padding:24px 10px;text-align:center;color:var(--text3);font-size:11px}
+/* ── HOME VIEW ── */
+.view-home{position:absolute;inset:0;display:flex;flex-direction:column}
+.view-home.hidden,.view-detail.hidden{display:none!important}
 
-/* ── Task strip ──────────────────────────────────────────────────────────── */
-.strip-idle{color:var(--text3);font-size:11px;display:flex;align-items:center;gap:6px}
-.task-card{flex-shrink:0;background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:8px 12px;min-width:170px;max-width:220px;position:relative;overflow:hidden}
-.task-card.running{border-color:var(--acc);animation:task-pulse 2s infinite}
-.task-card.error{border-color:var(--red)}
-.task-card.done{opacity:.5}
-@keyframes task-pulse{0%,100%{box-shadow:0 0 0 0 rgba(200,255,0,.2)}50%{box-shadow:0 0 0 4px rgba(200,255,0,.1)}}
-.tc-name{font-size:11px;font-weight:600;color:var(--text1);margin-bottom:3px;display:flex;align-items:center;gap:5px}
-.tc-step{font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tc-bar-bg{height:3px;background:var(--s4);border-radius:2px;margin-top:5px;overflow:hidden}
-.tc-bar{height:100%;background:var(--acc);border-radius:2px;transition:width .4s}
+/* Aurora */
+.aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.aurora-orb{position:absolute;border-radius:50%;filter:blur(100px)}
+.aurora-1{width:55%;height:75%;top:-20%;left:-10%;background:radial-gradient(circle,rgba(0,80,30,.35) 0%,transparent 65%);animation:aurora1 20s ease-in-out infinite;opacity:.7}
+.aurora-2{width:50%;height:60%;top:5%;right:-18%;background:radial-gradient(circle,rgba(0,70,70,.3) 0%,transparent 65%);animation:aurora2 25s ease-in-out infinite;opacity:.6}
+.aurora-3{width:45%;height:55%;bottom:-8%;left:28%;background:radial-gradient(circle,rgba(0,40,20,.28) 0%,transparent 65%);animation:aurora3 30s ease-in-out infinite;opacity:.7}
+
+/* Cards section */
+.home-cards-section{flex:0 0 43%;position:relative;overflow:hidden;display:flex;flex-direction:column;z-index:1}
+.cards-label-row{display:flex;align-items:baseline;gap:10px;padding:12px 22px 8px;flex-shrink:0}
+.cards-label{font-size:10px;font-weight:800;letter-spacing:3px;color:var(--text3);text-transform:uppercase}
+.cards-sub{font-size:11px;color:var(--text3)}
+.biz-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 22px 10px;flex:1;min-height:0;align-content:start}
+
+/* Business card */
+.biz-card{background:var(--s2);border:1px solid #1e1e1e;cursor:pointer;transition:border-color .2s,transform .18s,box-shadow .18s;position:relative;overflow:hidden;opacity:0;display:flex;flex-direction:column}
+.biz-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(200,255,0,.018) 0%,transparent 55%);pointer-events:none;z-index:0}
+.biz-card.entered{animation:fadeUp .38s ease forwards}
+.biz-card:hover{border-color:#2e2e2e;transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.45)}
+.biz-card-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 14px 7px;position:relative;z-index:1}
+.biz-card-name{font-size:14px;font-weight:800;color:var(--text1);letter-spacing:-.2px;margin-bottom:5px}
+.biz-badge{font-size:8px;font-weight:800;letter-spacing:.8px;padding:2px 7px;border:1px solid}
+.biz-status{font-size:8px;font-weight:700;padding:2px 7px;margin-left:4px}
+.status-active{background:rgba(76,175,80,.1);color:var(--green);border:1px solid rgba(76,175,80,.2)}
+.status-setting.up,.status-setup{background:rgba(255,193,7,.08);color:var(--yellow);border:1px solid rgba(255,193,7,.18)}
+.status-paused{background:rgba(150,150,150,.08);color:#666;border:1px solid rgba(150,150,150,.18)}
+.biz-card-stats{display:flex;flex:1;border-top:1px solid #1a1a1a;border-bottom:1px solid #1a1a1a;position:relative;z-index:1}
+.biz-stat{flex:1;padding:7px 12px;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;gap:2px}
+.biz-stat:last-child{border-right:none}
+.biz-stat-val{font-size:14px;font-weight:700;color:var(--text1);font-variant-numeric:tabular-nums}
+.biz-stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px}
+.biz-card-footer{padding:7px 14px;display:flex;align-items:center;gap:8px;position:relative;z-index:1}
+.biz-progress-wrap{flex:1;height:2px;background:#1a1a1a;overflow:hidden}
+.biz-progress-fill{height:100%;background:var(--acc);transition:width 1.2s ease;width:0%}
+.biz-progress-label{font-size:9px;color:var(--text3);white-space:nowrap}
+.biz-card-cta{font-size:9px;color:var(--text3);font-family:monospace;letter-spacing:.5px;opacity:0;transition:opacity .2s;margin-left:auto}
+.biz-card:hover .biz-card-cta{opacity:1}
+
+/* Home pipeline */
+.home-pipeline-section{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;border-top:1px solid #1a1a1a;z-index:1}
+
+/* ── DETAIL VIEW ── */
+.view-detail{position:absolute;inset:0;display:flex;flex-direction:column}
+.detail-topbar{flex-shrink:0;background:rgba(9,9,9,.97);border-bottom:1px solid #1a1a1a;padding:12px 22px 0;backdrop-filter:blur(4px)}
+.detail-row1{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.back-btn{background:none;border:1px solid #252525;color:var(--text2);padding:5px 11px;cursor:pointer;font-size:11px;font-family:monospace;transition:all .15s;flex-shrink:0;display:flex;align-items:center;gap:5px}
+.back-btn:hover{border-color:var(--acc);color:var(--acc)}
+.detail-biz-name{font-size:18px;font-weight:800;color:var(--text1);letter-spacing:-.3px}
+.det-stats-row{display:flex;border-top:1px solid #1a1a1a}
+.det-stat{flex:0 0 auto;padding:7px 18px;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;gap:1px}
+.det-stat:first-child{padding-left:0}
+.det-stat-val{font-size:16px;font-weight:700;color:var(--text1);font-variant-numeric:tabular-nums}
+.det-stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px}
+.detail-body{flex:1;display:flex;overflow:hidden;min-height:0}
+.detail-left{flex:0 0 63%;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid #1a1a1a}
+.detail-left-hdr{flex-shrink:0;padding:8px 16px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:10px;background:rgba(12,12,12,.7)}
+.detail-left-title{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+.detail-scroll{flex:1;overflow-y:auto;padding:12px 16px}
+.detail-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.detail-right-hdr{flex-shrink:0;padding:8px 14px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;background:rgba(12,12,12,.7)}
+.detail-right-title{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+.detail-right-scroll{flex:1;overflow-y:auto;padding:8px 10px}
+.detail-footer{flex-shrink:0;height:50px;background:rgba(9,9,9,.97);border-top:1px solid #1a1a1a;display:flex;align-items:center;padding:0 22px;gap:10px}
+
+/* Detail module card */
+.det-mod{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #1a1a1a;margin-bottom:5px;cursor:pointer;background:var(--s2);transition:background .15s,border-color .15s}
+.det-mod:hover{background:var(--s3);border-color:#2a2a2a}
+.det-mod-dot{width:8px;height:8px;border-radius:50%;background:#2a2a2a;flex-shrink:0;transition:background .3s}
+.det-mod-info{flex:1;min-width:0}
+.det-mod-name{font-size:11px;font-weight:700;color:var(--text1);font-family:monospace;margin-bottom:2px}
+.det-mod-row{display:flex;gap:8px}
+.det-mod-time{font-size:10px;color:var(--text3)}
+.det-mod-act{font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+
+/* ── PIPELINE FLOW ── */
+.flow-hdr{display:flex;align-items:center;padding:7px 20px;border-bottom:1px solid #1a1a1a;flex-shrink:0;gap:10px;background:rgba(12,12,12,.6)}
+.flow-title-text{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+.flow-hdr-right{display:flex;gap:7px;margin-left:auto;align-items:center}
+.flow-diagram{flex:1;display:flex;flex-direction:column;padding:10px 18px 4px;overflow:hidden;min-height:0;gap:8px}
+.flow-top-area{display:flex;align-items:flex-start;flex-shrink:0;overflow-x:auto;gap:0;flex-wrap:nowrap;padding-bottom:4px}
+.flow-shared{display:flex;align-items:flex-start;flex-shrink:0}
+.fork-junction{display:flex;align-self:stretch;flex-shrink:0;width:32px;position:relative;margin-top:20px}
+.fork-h{position:absolute;top:20px;left:0;width:100%;height:2px;background:#2a2a2a;transition:background .3s}
+.fork-v{position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:100%;background:#2a2a2a;transition:background .3s}
+.fork-junction.active .fork-h,.fork-junction.active .fork-v{background:var(--acc)}
+.flow-branches{display:flex;flex-direction:column;gap:10px;flex-shrink:0;justify-content:center;align-self:stretch}
+.flow-branch{display:flex;align-items:flex-start;gap:0}
+.branch-arm-line{width:24px;height:2px;background:#2a2a2a;align-self:center;flex-shrink:0;transition:background .3s}
+.branch-tag{font-size:9px;font-weight:800;letter-spacing:2px;font-family:monospace;padding:2px 7px;border:1px solid;align-self:center;flex-shrink:0;margin-right:6px;white-space:nowrap}
+.etsy-tag{color:var(--etsy-color);border-color:rgba(245,100,0,.3);background:rgba(245,100,0,.07)}
+.fiverr-tag{color:var(--fv-color);border-color:rgba(29,191,115,.3);background:rgba(29,191,115,.07)}
+.branch-nodes{display:flex;align-items:flex-start}
+.flow-branch.active-etsy .branch-arm-line{background:var(--acc)}
+.flow-branch.active-fiverr .branch-arm-line{background:var(--acc)}
+.flow-support{display:flex;gap:12px;padding:4px 0 0;border-top:1px dashed #1a1a1a;flex-shrink:0;overflow-x:auto;flex-wrap:nowrap}
+.support-label{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-right:4px;align-self:center;white-space:nowrap}
+
+/* Agent node */
+.anode{background:var(--s2);border:1px solid #1e1e1e;flex-shrink:0;cursor:pointer;transition:border-color .2s,box-shadow .2s;width:148px}
+.anode.support{width:128px}
+.anode:hover{border-color:#2a2a2a}
+.anode.running-node{border-color:rgba(255,193,7,.35)!important;animation:anode-pulse 2s infinite}
+.anode.running-node .anode-dot{animation:pulse-ring 1.5s ease-out infinite!important}
+.anode.error-node{border-color:#3a1515!important;box-shadow:none!important}
+.anode.done-node{border-color:#1a321a!important;box-shadow:none!important}
+.anode.active-node{border-color:rgba(200,255,0,.28)!important}
+.anode-hdr{display:flex;align-items:center;gap:7px;padding:8px 10px 4px}
+.anode-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#1e1e1e;transition:background .3s}
+.dot-green{background:var(--green)!important}
+.dot-yellow{background:var(--yellow)!important;animation:dot-blink 1s infinite}
+.dot-red{background:var(--red)!important}
+.dot-gray{background:#2a2a2a!important}
+.anode-name{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.3px;font-family:monospace}
+.anode-body{padding:0 10px 5px}
+.anode-time{font-size:10px;color:var(--text3);font-family:monospace}
+.anode-last{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:126px;margin-top:1px}
+.anode-foot{border-top:1px solid #1e1e1e;padding:4px 8px}
+.anode-run{width:100%;background:none;border:1px solid #222;color:var(--text3);font-size:9px;padding:4px 0;cursor:pointer;font-weight:700;letter-spacing:.5px;font-family:monospace;transition:all .15s}
+.anode-run:hover{border-color:var(--acc);color:var(--acc)}
+
+/* Connector — BEAM effect */
+.conn{width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;margin-top:18px}
+.conn-line{width:100%;height:2px;background:#1e1e1e;position:relative;overflow:hidden;transition:background .3s}
+.conn-line::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--acc) 50%,transparent);background-size:200% 100%;background-position:200% center;opacity:0}
+.conn-head{position:absolute;right:-5px;top:-5px;border-left:9px solid #1e1e1e;border-top:5px solid transparent;border-bottom:5px solid transparent;transition:border-left-color .3s}
+.conn-travel{display:none!important}
+.conn.active .conn-line{background:#0d0d0d}
+.conn.active .conn-line::before{opacity:1;animation:beam 1.4s linear infinite}
+.conn.active .conn-head{border-left-color:var(--acc)}
+.flow-branch.active-etsy .conn-etsy .conn-line{background:#0d0d0d}
+.flow-branch.active-etsy .conn-etsy .conn-line::before{opacity:1;animation:beam 1.4s linear infinite}
+.flow-branch.active-etsy .conn-etsy .conn-head{border-left-color:var(--acc)}
+.flow-branch.active-fiverr .conn-fv .conn-line{background:#0d0d0d}
+.flow-branch.active-fiverr .conn-fv .conn-line::before{opacity:1;animation:beam 1.4s linear infinite}
+.flow-branch.active-fiverr .conn-fv .conn-head{border-left-color:var(--acc)}
+
+/* ── MODULE OVERLAY ── */
+.mod-overlay{position:fixed;top:64px;bottom:48px;left:0;right:0;background:rgba(7,7,7,.97);z-index:400;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .2s ease,transform .2s ease}
+.mod-overlay.open{opacity:1;pointer-events:all;transform:translateY(0)}
+.mod-hdr{display:flex;align-items:center;padding:10px 22px;border-bottom:1px solid #1a1a1a;flex-shrink:0;background:rgba(9,9,9,.92);gap:12px}
+.mod-title{font-size:14px;font-weight:700;color:var(--acc);font-family:monospace;letter-spacing:1px}
+.mod-platform-badge{font-size:9px;padding:2px 8px;border:1px solid;font-weight:700}
+.mod-status-dot{width:9px;height:9px;border-radius:50%;background:#2a2a2a;flex-shrink:0}
+.mod-close{margin-left:auto;background:none;border:1px solid #2a2a2a;color:var(--text2);width:34px;height:34px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.mod-close:hover{border-color:var(--text1);color:var(--text1)}
+.mod-body{display:flex;flex:1;overflow:hidden;min-height:0}
+.mod-terminal{flex:0 0 60%;background:#020202;border-right:1px solid #1a1a1a;font-family:'Courier New',monospace;font-size:12px;color:#3a3;padding:10px 14px;overflow-y:auto;line-height:1.6}
+.mod-panel{flex:1;overflow-y:auto;padding:14px 18px;font-size:12px}
+.mod-foot{display:flex;align-items:center;padding:8px 20px;border-top:1px solid #1a1a1a;gap:12px;flex-shrink:0;background:rgba(9,9,9,.8)}
+.mod-foot-left{flex:1;display:flex;align-items:center;gap:16px;min-width:0}
+
+/* ── BOTTOM STRIP ── */
+.task-strip{flex-shrink:0;height:48px;background:rgba(9,9,9,.99);border-top:1px solid var(--s4);display:flex;align-items:center;padding:0 16px;gap:12px;overflow-x:auto;z-index:150;position:relative}
+.strip-idle{display:flex;align-items:center;gap:6px;color:var(--text3);font-size:11px;font-family:monospace;flex-shrink:0}
+.strip-idle i{color:#333;font-size:14px}
+.task-card{background:var(--s2);border:1px solid var(--s4);display:flex;align-items:center;gap:10px;padding:6px 12px;min-width:170px;position:relative;overflow:hidden;flex-shrink:0}
+.task-card.running{border-color:var(--yellow)}
+.task-card.done{border-color:var(--green);opacity:.6}
+.task-card.error-state{border-color:var(--red)}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--yellow);animation:pulse-ring 1.5s ease-out infinite;flex-shrink:0}
+.tc-name{font-size:11px;font-weight:700;font-family:monospace;color:var(--text1)}
+.tc-step{font-size:10px;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc-bar-bg{position:absolute;bottom:0;left:0;right:0;height:2px;background:#222}
+.tc-bar{height:100%;background:var(--acc);transition:width .4s}
 .tc-bar.error-bar{background:var(--red)}
-.tc-footer{display:flex;justify-content:space-between;margin-top:4px}
 .tc-elapsed{font-size:10px;color:var(--text3)}
 .tc-cost{font-size:10px;color:var(--acc)}
-.tc-dismiss{position:absolute;top:4px;right:6px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0}
-.tc-dismiss:hover{color:var(--text1)}
-.pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:dot-blink 1s infinite}
-@keyframes dot-blink{0%,100%{opacity:1}50%{opacity:.2}}
+.tc-dismiss{position:absolute;top:3px;right:4px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px}
+.sched-ctrl{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sched-status{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);font-family:monospace}
 
-/* ── Content sections ────────────────────────────────────────────────────── */
-.section{display:none}
-.section.active{display:block}
-h2.page-title{font-size:16px;font-weight:700;color:var(--text1);margin-bottom:16px;display:flex;align-items:center;gap:8px}
-h2.page-title i{color:var(--acc)}
+/* ── NOTIFICATION PANEL ── */
+.notif-panel{position:fixed;top:0;right:0;bottom:48px;width:320px;background:var(--s1);border-left:1px solid var(--s4);z-index:500;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease}
+.notif-panel.open{transform:translateX(0)}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid var(--s4);flex-shrink:0;background:var(--s2);height:64px}
+.panel-hdr-title{font-size:12px;font-weight:700;color:var(--text1);letter-spacing:1px}
+.panel-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;padding:4px}
+.panel-close:hover{color:var(--text1)}
+.panel-section{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;padding:9px 18px 5px;text-transform:uppercase;border-bottom:1px solid #181818}
+.panel-scroll{flex:1;overflow-y:auto}
+.act-item{display:flex;gap:10px;padding:9px 18px;border-bottom:1px solid #181818;align-items:flex-start;transition:background .15s}
+.act-item:hover{background:var(--s3)}
+.act-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.act-body{flex:1;min-width:0}
+.act-msg{font-size:12px;color:var(--text1);line-height:1.5;word-break:break-word}
+.act-meta{font-size:10px;color:var(--text3);margin-top:2px}
+.act-empty{padding:22px 18px;color:var(--text3);font-size:12px;text-align:center}
+.notif-item{display:flex;gap:10px;padding:9px 18px;border-bottom:1px solid #181818;align-items:flex-start}
+.notif-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.notif-body{flex:1}
+.notif-msg{font-size:12px;color:var(--text1);line-height:1.5}
+.notif-time{font-size:10px;color:var(--text3);margin-top:2px}
+.notif-empty{padding:22px 18px;color:var(--text3);font-size:12px;text-align:center}
 
-/* ── Cards ───────────────────────────────────────────────────────────────── */
-.card{background:var(--s2);border:1px solid var(--s3);border-radius:8px;padding:16px}
-.card-sm{background:var(--s2);border:1px solid var(--s3);border-radius:8px;padding:12px}
-.card-title{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
+/* ── ORCHESTRATOR PANEL ── */
+.orch-panel{position:fixed;left:0;right:0;bottom:0;height:50vh;background:var(--s1);border-top:2px solid var(--acc);z-index:600;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .25s ease}
+.orch-panel.open{transform:translateY(0)}
+.orch-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #1a1a1a;flex-shrink:0;background:var(--s2)}
+.orch-hdr-title{font-size:12px;font-weight:800;color:var(--acc);letter-spacing:2px;font-family:monospace}
+.orch-state-bar{padding:7px 18px;background:#000;border-bottom:1px solid #1a1a1a;font-size:10px;color:var(--text3);font-family:monospace;flex-shrink:0;line-height:1.6}
+.chat-history{flex:1;overflow-y:auto;padding:12px 18px;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:70%;padding:10px 14px;font-size:13px;line-height:1.6}
+.chat-msg.user{align-self:flex-end;background:rgba(200,255,0,.07);border:1px solid rgba(200,255,0,.14);color:var(--text1)}
+.chat-msg.assistant{align-self:flex-start;background:#000;border:1px solid #222;color:var(--text2)}
+.chat-msg.ts{font-size:10px;color:var(--text3);margin-top:2px;align-self:flex-end}
+.chat-input-row{display:flex;gap:10px;padding:10px 18px;border-top:1px solid #222;flex-shrink:0}
+.chat-input{flex:1;background:#000;border:1px solid #333;color:var(--text1);padding:9px 12px;font-size:13px;resize:none;height:60px;font-family:monospace}
+.chat-input:focus{outline:none;border-color:var(--acc)}
+.chat-send{background:var(--acc);color:#000;border:none;padding:0 18px;font-weight:800;cursor:pointer;font-size:13px}
+.chat-send:hover{background:var(--acc2)}
+.chat-send:disabled{opacity:.4;cursor:not-allowed}
 
-/* ── Stat tiles ──────────────────────────────────────────────────────────── */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
-.stat-tile{background:var(--s2);border:1px solid var(--s3);border-radius:8px;padding:14px}
-.stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.stat-val{font-size:22px;font-weight:700;color:var(--text1)}
-.stat-sub{font-size:10px;color:var(--text3);margin-top:2px}
-
-/* ── Tables ──────────────────────────────────────────────────────────────── */
-.tbl{width:100%;border-collapse:collapse;font-size:12px}
-.tbl th{text-align:left;padding:6px 10px;color:var(--text3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--s3)}
-.tbl td{padding:7px 10px;border-bottom:1px solid #161616;color:var(--text2)}
-.tbl tr:hover td{background:var(--s3)}
-
-/* ── Buttons ─────────────────────────────────────────────────────────────── */
-.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:500;transition:.15s}
-.btn-acc{background:var(--acc);color:#000}
+/* ── SHARED UTILITIES ── */
+.badge{display:inline-flex;align-items:center;padding:1px 6px;font-size:9px;font-weight:700;letter-spacing:.3px}
+.badge-green{background:rgba(76,175,80,.12);color:#4caf50}
+.badge-yellow{background:rgba(255,193,7,.12);color:#ffc107}
+.badge-red{background:rgba(239,68,68,.12);color:#ef4444}
+.badge-blue{background:rgba(33,150,243,.12);color:#2196f3}
+.badge-gray{background:rgba(150,150,150,.08);color:#666}
+.badge-acc{background:rgba(200,255,0,.1);color:var(--acc)}
+.btn{display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid var(--s4);color:var(--text2);padding:5px 12px;font-size:10px;cursor:pointer;font-weight:600;letter-spacing:.3px;transition:all .15s;font-family:inherit}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-acc{background:var(--acc);color:#000;border:none;padding:5px 14px;font-weight:800;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-family:inherit;font-size:11px}
 .btn-acc:hover{background:var(--acc2)}
 .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--s4)}
 .btn-ghost:hover{color:var(--text1);border-color:var(--text3)}
-.btn-danger{background:rgba(244,67,54,.15);color:var(--red);border:1px solid rgba(244,67,54,.3)}
-.btn-danger:hover{background:rgba(244,67,54,.25)}
-.btn-sm{padding:4px 8px;font-size:11px}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-
-/* ── Badges ──────────────────────────────────────────────────────────────── */
-.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.3px}
-.badge-green{background:rgba(76,175,80,.15);color:var(--green)}
-.badge-yellow{background:rgba(255,193,7,.15);color:var(--yellow)}
-.badge-red{background:rgba(244,67,54,.15);color:var(--red)}
-.badge-blue{background:rgba(33,150,243,.15);color:var(--blue)}
-.badge-gray{background:rgba(150,150,150,.1);color:var(--text3)}
-.badge-acc{background:rgba(200,255,0,.12);color:var(--acc)}
-
-/* ── Progress bar ────────────────────────────────────────────────────────── */
-.progress-wrap{background:var(--s3);border-radius:4px;height:6px;overflow:hidden}
-.progress-fill{height:100%;border-radius:4px;transition:width .5s}
+.btn-danger{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
+.btn-sm{padding:4px 10px;font-size:10px}
+.spinner{display:inline-block;width:10px;height:10px;border:2px solid #333;border-top-color:var(--acc);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:4px}
+.loading{color:var(--text3);font-size:10px;padding:10px 0;display:flex;align-items:center}
+.empty-state{text-align:center;padding:20px 10px;color:var(--text3);font-size:10px}
+.empty-state i{font-size:22px;margin-bottom:5px;display:block}
+.log-line{font-family:monospace;font-size:12px;color:#3a3;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+.log-line.err{color:var(--red)}
+.log-line.ok{color:var(--acc)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{padding:4px 10px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text3);background:none;border:1px solid transparent;letter-spacing:.3px}
+.tab:hover{color:var(--text1)}
+.tab.active{color:var(--acc);border-color:rgba(200,255,0,.3)}
+.progress-wrap{background:var(--s4);height:4px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;transition:width .5s}
+.progress-fill.acc{background:var(--acc)}
 .progress-fill.green{background:var(--green)}
 .progress-fill.yellow{background:var(--yellow)}
 .progress-fill.red{background:var(--red)}
-.progress-fill.acc{background:var(--acc)}
-
-/* ── Two-column layout ───────────────────────────────────────────────────── */
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-
-/* ── Section: Overview ───────────────────────────────────────────────────── */
-.ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.quick-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-.conditions-mini{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
-.cond-item{background:var(--s3);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:6px}
-.cond-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.cond-dot.run{background:var(--green)}
-.cond-dot.skip{background:var(--yellow)}
-.cond-name{font-size:11px;font-weight:500;color:var(--text1);flex:1}
-.cond-reason{font-size:10px;color:var(--text3);margin-top:1px}
-
-/* ── Section: Income Streams ─────────────────────────────────────────────── */
-.stream-col{display:flex;flex-direction:column;gap:14px}
-.stream-header{display:flex;align-items:center;gap:8px;margin-bottom:2px}
-.stream-header h3{font-size:14px;font-weight:700}
-.design-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:10px}
-.dc{background:var(--s3);border-radius:6px;overflow:hidden;border:1px solid var(--s4)}
+/* Design grid */
+.dc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px}
+.dc{background:var(--s3);border:1px solid var(--s4);overflow:hidden}
 .dc img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
-.dc-placeholder{width:100%;aspect-ratio:1;background:var(--s4);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;color:var(--text3)}
-.dc-placeholder i{font-size:24px}
-.dc-body{padding:7px}
-.dc-niche{font-size:10px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dc-meta{font-size:10px;color:var(--text3);margin-top:2px}
-.dc.rejected{opacity:.45}
-
-/* ── Section: Intelligence ───────────────────────────────────────────────── */
-.proposal-card{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:14px;margin-bottom:10px}
-.proposal-name{font-size:13px;font-weight:600;color:var(--text1);margin-bottom:6px}
-.proposal-how{font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.5}
-.proposal-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-.proposal-actions{display:flex;gap:8px}
-.memory-card{background:var(--s3);border:1px solid var(--s4);border-radius:6px;padding:10px;margin-bottom:6px}
-.mem-key{font-size:11px;font-weight:600;color:var(--acc);margin-bottom:4px}
-.mem-val{font-size:11px;color:var(--text2);word-break:break-all}
-
-/* ── Section: Pipeline ───────────────────────────────────────────────────── */
-.agent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-.agent-card{background:var(--s3);border:1px solid var(--s4);border-radius:8px;padding:12px}
+.dc-ph{width:100%;aspect-ratio:1;background:var(--s4);display:flex;align-items:center;justify-content:center;color:var(--text3);flex-direction:column;gap:3px}
+.dc-ph i{font-size:16px}
+.dc-b{padding:5px 6px}
+.dc-niche{font-size:11px;font-weight:600;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.dc.rejected{opacity:.38}
+.dc-actions{display:flex;gap:3px;margin-top:3px}
+.dc-actions button{flex:1;font-size:10px;padding:3px 0;border:none;cursor:pointer;font-weight:700}
+.btn-approve{background:#152a15;color:#4caf50;border:1px solid #2a5a2a}
+.btn-reject{background:#2a1515;color:#f44336;border:1px solid #5a2a2a}
+.btn-override-loading{opacity:.5;cursor:not-allowed}
+/* Module detail panels */
+.fin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fin-tile{background:var(--s2);border:1px solid var(--s4);padding:9px 12px}
+.fin-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+.fin-val{font-size:14px;font-weight:700;color:var(--text1);margin-top:3px}
+.proposal-card{background:var(--s3);border:1px solid var(--s4);padding:12px;margin-bottom:7px}
+.proposal-name{font-size:13px;font-weight:700;color:var(--text1);margin-bottom:4px}
+.proposal-how{font-size:11px;color:var(--text2);margin-bottom:7px;line-height:1.5}
+.proposal-meta{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.proposal-actions{display:flex;gap:5px}
+.memory-card{background:var(--s3);border:1px solid var(--s4);padding:7px;margin-bottom:4px}
+.mem-key{font-size:11px;font-weight:700;color:var(--acc);margin-bottom:3px}
+.mem-val{font-size:11px;color:var(--text2);word-break:break-all;line-height:1.5}
+.cond-row{display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid #181818}
+.cond-row-name{font-size:11px;font-weight:700;color:var(--text1);width:130px;flex-shrink:0}
+.cond-row-reason{font-size:11px;color:var(--text2);flex:1;line-height:1.5}
+.agent-card{background:var(--s3);border:1px solid var(--s4);padding:7px 9px;margin-bottom:4px}
 .agent-card.running{border-color:var(--acc)}
 .agent-card.error-state{border-color:var(--red)}
-.ac-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.ac-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.ac-dot.green{background:var(--green)}
-.ac-dot.yellow{background:var(--yellow);animation:dot-blink 1s infinite}
-.ac-dot.red{background:var(--red)}
-.ac-dot.gray{background:var(--s4)}
-.ac-name{font-size:12px;font-weight:600;color:var(--text1);flex:1}
-.ac-cond{font-size:10px;color:var(--text3);margin-bottom:8px;line-height:1.4;min-height:28px}
+.ac-header{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.ac-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ac-dot.green{background:var(--green)}.ac-dot.yellow{background:var(--yellow);animation:dot-blink 1s infinite}.ac-dot.red{background:var(--red)}.ac-dot.gray{background:var(--s4)}
+.ac-name{font-size:10px;font-weight:600;color:var(--text1);flex:1}
+.ac-cond{font-size:11px;color:var(--text3);line-height:1.4}
 .ac-cond.skip-cond{color:var(--yellow)}
-.cond-table{width:100%;margin-top:12px}
-.cond-row{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--s4)}
-.cond-row:last-child{border-bottom:none}
-.cond-row-name{font-size:11px;font-weight:600;color:var(--text1);width:120px;flex-shrink:0}
-.cond-row-reason{font-size:11px;color:var(--text2);flex:1;line-height:1.4}
-
-/* ── Log panel ───────────────────────────────────────────────────────────── */
-.log-panel{background:var(--bg);border:1px solid var(--s3);border-radius:6px;height:260px;overflow-y:auto;padding:8px;font-family:'Fira Mono','Courier New',monospace;font-size:11px;color:#aaa}
-.log-panel .log-line{padding:1px 0;white-space:pre-wrap;word-break:break-all}
-.log-panel .log-line.err{color:var(--red)}
-.log-panel .log-line.ok{color:var(--green)}
-
-/* ── Orchestrator ────────────────────────────────────────────────────────── */
-.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 48px - var(--strip-h) - 40px)}
-.chat-history{flex:1;overflow-y:auto;padding:10px 0;display:flex;flex-direction:column;gap:10px}
-.chat-msg{max-width:75%;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6}
-.chat-msg.user{align-self:flex-end;background:rgba(200,255,0,.12);border:1px solid rgba(200,255,0,.2);color:var(--text1)}
-.chat-msg.assistant{align-self:flex-start;background:var(--s2);border:1px solid var(--s3);color:var(--text1)}
-.chat-msg.ts{font-size:10px;color:var(--text3);margin-top:4px;align-self:flex-end}
-.chat-input-row{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--s3)}
-.chat-input{flex:1;background:var(--s2);border:1px solid var(--s3);border-radius:6px;padding:10px;color:var(--text1);font-size:13px;resize:none;height:60px;font-family:inherit}
-.chat-input:focus{outline:none;border-color:var(--acc)}
-
-/* ── Misc ────────────────────────────────────────────────────────────────── */
-.divider{border:none;border-top:1px solid var(--s3);margin:14px 0}
-.empty-state{text-align:center;padding:32px 16px;color:var(--text3)}
-.empty-state i{font-size:32px;margin-bottom:8px;display:block}
-.empty-state p{font-size:12px}
-.loading{color:var(--text3);font-size:12px;padding:16px 0}
-.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--s3);border-top-color:var(--acc);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.tabs{display:flex;gap:4px;margin-bottom:14px}
-.tab{padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:500;color:var(--text3);background:none;border:none}
-.tab.active,.tab:hover{color:var(--text1);background:var(--s3)}
-.tab.active{color:var(--acc)}
-.section-sub{margin-bottom:20px}
-.section-sub-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--s3);display:flex;align-items:center;justify-content:space-between}
+/* Lightbox */
+.lb-overlay{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease}
+.lb-overlay.open{opacity:1;pointer-events:all}
+.lb-close{position:absolute;top:16px;right:20px;background:none;border:1px solid #444;color:#ccc;width:38px;height:38px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:all .15s}
+.lb-close:hover{border-color:#fff;color:#fff}
+.lb-arrow{position:absolute;top:50%;transform:translateY(-50%);background:rgba(18,18,18,.85);border:1px solid #444;color:#ccc;width:44px;height:44px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:all .15s}
+.lb-arrow:hover{border-color:#888;color:#fff}
+.lb-prev{left:20px}.lb-next{right:20px}
+.lb-counter{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:11px;color:#888;font-family:monospace}
+.lb-stage{display:flex;align-items:center;justify-content:center;max-height:80vh;max-width:90vw}
+.lb-image{max-height:80vh;max-width:84vw;object-fit:contain;border:2px solid #333}
+.lb-image.status-approved{border-color:var(--green)}
+.lb-image.status-rejected{border-color:var(--red)}
+.lb-image.status-generated{border-color:#444}
+.lb-image.status-published{border-color:var(--blue)}
+.lb-no-img{display:flex;flex-direction:column;align-items:center;gap:10px;color:#555;font-size:14px}
+.lb-no-img i{font-size:40px}
+.lb-footer{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;min-width:300px;max-width:600px}
+.lb-meta{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.lb-niche{font-size:14px;font-weight:700;color:#ccc}
+.lb-qa{font-size:11px;color:#777;font-style:italic}
+.lb-info{font-size:10px;color:#555}
+.lb-actions{display:flex;gap:8px;margin-top:4px}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:#3a3a3a}
 </style>
 </head>
 <body>
 <div id="app">
 
-<!-- ══ Header ══════════════════════════════════════════════════════════════ -->
-<header class="header">
-  <div class="header-logo">AGENTIC <span>INCOME ENGINE</span></div>
-  <div class="header-spacer"></div>
-  <div class="header-spend" id="hdr-spend">Loading...</div>
-  <div style="position:relative">
-    <button class="bell-btn" id="bell-btn" onclick="toggleNotifDropdown()">
+<!-- ══ TOP BAR ══════════════════════════════════════════════════════════════ -->
+<div class="topbar">
+  <div class="wordmark">AGENTIC<small>INCOME ENGINE</small></div>
+  <div class="stat-pills">
+    <div class="pill spend-wrap">
+      <div class="pill-lbl">API Spend</div>
+      <div class="pill-val" id="hdr-spend">$0.00 <span style="font-size:10px;color:var(--text3)">/ $100</span></div>
+      <div class="spend-bar"><div class="spend-bar-fill" id="spend-bar-fill" style="width:0%"></div></div>
+      <div class="spend-tooltip"><div id="spend-tooltip-body"><div class="st-row"><span>No costs yet</span><span></span></div></div></div>
+    </div>
+    <div class="pill"><div class="pill-lbl">Revenue</div><div class="pill-val" id="pill-revenue">$0.00</div></div>
+    <div class="pill"><div class="pill-lbl">Net Profit</div><div class="pill-val" id="pill-net">$0.00</div></div>
+    <div class="pill"><div class="pill-lbl">Listings</div><div class="pill-val" id="pill-listings">0</div></div>
+  </div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="toggleNotifDropdown()" title="Activity &amp; Alerts">
       <i class="ti ti-bell"></i>
       <span class="bell-badge hidden" id="bell-badge">0</span>
     </button>
-    <div class="notif-dropdown" id="notif-dropdown" style="display:none">
-      <div class="notif-header">
-        <span>Notifications</span>
-        <button class="notif-clear" onclick="clearNotifications()">Mark all read</button>
-      </div>
-      <div id="notif-list"></div>
+    <button class="orch-topbtn" onclick="toggleOrchPanel()"><i class="ti ti-robot"></i> ORCHESTRATOR</button>
+    <div class="sched-grp">
+      <i class="ti ti-circle-filled sched-grp-dot" id="sched-dot"></i>
+      <span class="sched-grp-lbl" id="sched-label">idle</span>
+      <button class="btn btn-sm" id="btn-scheduler" onclick="toggleScheduler()"><i class="ti ti-clock"></i> Start</button>
     </div>
   </div>
-</header>
-
-<!-- ══ Body layout ═════════════════════════════════════════════════════════ -->
-<div class="layout">
-
-  <!-- Sidebar -->
-  <nav class="sidebar">
-    <div class="sidebar-section">Dashboard</div>
-    <div class="nav-item active" data-section="overview" onclick="nav(this)">
-      <i class="ti ti-layout-dashboard"></i>Overview
-    </div>
-    <div class="sidebar-section">Income</div>
-    <div class="nav-item" data-section="streams" onclick="nav(this)">
-      <i class="ti ti-coins"></i>Income Streams
-    </div>
-    <div class="sidebar-section">Operations</div>
-    <div class="nav-item" data-section="pipeline" onclick="nav(this)">
-      <i class="ti ti-robot"></i>Pipeline
-    </div>
-    <div class="nav-item" data-section="intelligence" onclick="nav(this)">
-      <i class="ti ti-brain"></i>Intelligence
-    </div>
-    <div class="sidebar-section">AI</div>
-    <div class="nav-item" data-section="orchestrator" onclick="nav(this)">
-      <i class="ti ti-message-dots"></i>Orchestrator
-    </div>
-    <div class="sidebar-footer">
-      <div style="font-size:10px;color:var(--text3);text-align:center" id="sched-status">
-        Scheduler <span id="sched-dot" style="color:var(--text3)">●</span>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Main content -->
-  <main class="content">
-
-    <!-- ── Overview ───────────────────────────────────────────────────────── -->
-    <section class="section active" id="s-overview">
-      <h2 class="page-title"><i class="ti ti-layout-dashboard"></i>Overview</h2>
-      <div class="stats-grid" id="ov-stats">
-        <div class="stat-tile"><div class="stat-label">Week Revenue</div><div class="stat-val" id="ov-rev">—</div></div>
-        <div class="stat-tile"><div class="stat-label">Week Net</div><div class="stat-val" id="ov-net">—</div></div>
-        <div class="stat-tile"><div class="stat-label">API Spend</div><div class="stat-val" id="ov-spend">—</div><div class="stat-sub" id="ov-spend-sub"></div></div>
-        <div class="stat-tile"><div class="stat-label">Active Listings</div><div class="stat-val" id="ov-listings">—</div></div>
-        <div class="stat-tile"><div class="stat-label">Approved Designs</div><div class="stat-val" id="ov-approved">—</div><div class="stat-sub">ready to publish</div></div>
-        <div class="stat-tile"><div class="stat-label">Generated Today</div><div class="stat-val" id="ov-generated">—</div></div>
-      </div>
-      <div class="quick-actions">
-        <button class="btn btn-acc" onclick="runAgent('research')"><i class="ti ti-search"></i>Run Research</button>
-        <button class="btn btn-ghost" onclick="runAgent('design')"><i class="ti ti-palette"></i>Run Design</button>
-        <button class="btn btn-ghost" onclick="runAgent('scout')"><i class="ti ti-telescope"></i>Run Scout</button>
-        <button class="btn btn-ghost" onclick="runAgent('memory')"><i class="ti ti-database"></i>Run Memory</button>
-      </div>
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-title">Scheduler Status</div>
-        <div class="conditions-mini" id="ov-conditions">
-          <div class="loading"><span class="spinner"></span>Loading...</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Income Streams</div>
-        <div class="two-col">
-          <div class="card-sm">
-            <div class="stream-header"><i class="ti ti-brand-etsy" style="color:#f56400;font-size:18px"></i><h3>Etsy</h3><span class="badge badge-yellow" id="ov-etsy-status">Setting Up</span></div>
-            <div style="margin-top:8px;font-size:12px;color:var(--text2)" id="ov-etsy-summary">Loading...</div>
-          </div>
-          <div class="card-sm">
-            <div class="stream-header"><i class="ti ti-brand-fiverr" style="color:#1dbf73;font-size:18px"></i><h3>Fiverr</h3><span class="badge badge-yellow" id="ov-fiverr-status">Setting Up</span></div>
-            <div style="margin-top:8px;font-size:12px;color:var(--text2)" id="ov-fiverr-summary">Loading...</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Income Streams ─────────────────────────────────────────────────── -->
-    <section class="section" id="s-streams">
-      <h2 class="page-title"><i class="ti ti-coins"></i>Income Streams</h2>
-      <div class="two-col">
-        <!-- Etsy column -->
-        <div class="stream-col">
-          <div class="card-sm">
-            <div class="stream-header"><i class="ti ti-brand-etsy" style="color:#f56400;font-size:20px"></i><h3>Etsy</h3></div>
-            <div class="stats-grid" style="margin-top:10px" id="etsy-stats-grid">
-              <div class="stat-tile"><div class="stat-label">Active Listings</div><div class="stat-val" id="etsy-active">—</div></div>
-              <div class="stat-tile"><div class="stat-label">Revenue / Week</div><div class="stat-val" id="etsy-rev">—</div></div>
-              <div class="stat-tile"><div class="stat-label">Orders / Week</div><div class="stat-val" id="etsy-orders">—</div></div>
-              <div class="stat-tile"><div class="stat-label">Avg Net / Sale</div><div class="stat-val" id="etsy-avg">—</div></div>
-            </div>
-          </div>
-          <div class="card-sm">
-            <div class="section-sub-title">
-              <span>Designs</span>
-              <div class="tabs" style="margin:0">
-                <button class="tab active" onclick="filterDesigns('etsy','all',this)">All</button>
-                <button class="tab" onclick="filterDesigns('etsy','approved',this)">Approved</button>
-                <button class="tab" onclick="filterDesigns('etsy','rejected',this)">Rejected</button>
-                <button class="tab" onclick="filterDesigns('etsy','published',this)">Published</button>
-              </div>
-            </div>
-            <div id="etsy-design-stats" style="font-size:11px;color:var(--text3);margin-bottom:8px"></div>
-            <div class="design-grid" id="etsy-designs"><div class="loading"><span class="spinner"></span>Loading...</div></div>
-          </div>
-          <div class="card-sm">
-            <div class="card-title">Controls</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('research')"><i class="ti ti-search"></i>Research</button>
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('design')"><i class="ti ti-palette"></i>Design</button>
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('qa')"><i class="ti ti-check"></i>QA</button>
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('publisher')"><i class="ti ti-upload"></i>Publish</button>
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('performance')"><i class="ti ti-chart-line"></i>Performance</button>
-            </div>
-          </div>
-        </div>
-        <!-- Fiverr column -->
-        <div class="stream-col">
-          <div class="card-sm">
-            <div class="stream-header"><i class="ti ti-brand-fiverr" style="color:#1dbf73;font-size:20px"></i><h3>Fiverr</h3></div>
-            <div class="stats-grid" style="margin-top:10px">
-              <div class="stat-tile"><div class="stat-label">Delivered Total</div><div class="stat-val" id="fv-delivered">—</div></div>
-              <div class="stat-tile"><div class="stat-label">Orders / Week</div><div class="stat-val" id="fv-orders">—</div></div>
-              <div class="stat-tile"><div class="stat-label">Revenue / Week</div><div class="stat-val" id="fv-rev">—</div></div>
-              <div class="stat-tile"><div class="stat-label">Avg Rating</div><div class="stat-val" id="fv-rating">—</div></div>
-            </div>
-          </div>
-          <div class="card-sm">
-            <div class="section-sub-title">
-              <span>Designs</span>
-              <div class="tabs" style="margin:0">
-                <button class="tab active" onclick="filterDesigns('fiverr','all',this)">All</button>
-                <button class="tab" onclick="filterDesigns('fiverr','approved',this)">Ready</button>
-                <button class="tab" onclick="filterDesigns('fiverr','published',this)">Delivered</button>
-              </div>
-            </div>
-            <div class="design-grid" id="fiverr-designs"><div class="loading"><span class="spinner"></span>Loading...</div></div>
-          </div>
-          <div class="card-sm">
-            <div class="card-title">Controls</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_orders')"><i class="ti ti-mail"></i>Check Orders</button>
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_reviews')"><i class="ti ti-star"></i>Check Reviews</button>
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_scout')"><i class="ti ti-telescope"></i>Fiverr Scout</button>
-              <button class="btn btn-ghost btn-sm" onclick="runAgent('fiverr_test')"><i class="ti ti-test-pipe"></i>Test Order</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Pipeline ───────────────────────────────────────────────────────── -->
-    <section class="section" id="s-pipeline">
-      <h2 class="page-title"><i class="ti ti-robot"></i>Pipeline</h2>
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-title">Scheduler Conditions</div>
-        <div id="cond-full-table"><div class="loading"><span class="spinner"></span>Loading...</div></div>
-      </div>
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-title">All Agents</div>
-        <div class="agent-grid" id="agent-grid">
-          <!-- filled by JS -->
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Live Log</div>
-        <div class="log-panel" id="live-log"></div>
-      </div>
-    </section>
-
-    <!-- ── Intelligence ───────────────────────────────────────────────────── -->
-    <section class="section" id="s-intelligence">
-      <h2 class="page-title"><i class="ti ti-brain"></i>Intelligence</h2>
-      <!-- Scout -->
-      <div class="section-sub">
-        <div class="section-sub-title">
-          <span><i class="ti ti-telescope"></i> Scout Proposals</span>
-          <div class="tabs" style="margin:0">
-            <button class="tab active" onclick="filterProposals('pending',this)">Pending</button>
-            <button class="tab" onclick="filterProposals('approved',this)">Approved</button>
-            <button class="tab" onclick="filterProposals('ignored',this)">Ignored</button>
-          </div>
-        </div>
-        <div id="proposals-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
-      </div>
-      <hr class="divider">
-      <!-- Memory -->
-      <div class="section-sub">
-        <div class="section-sub-title">
-          <span><i class="ti ti-database"></i> System Memory</span>
-          <select id="mem-cat-filter" onchange="loadMemory()" style="background:var(--s3);border:1px solid var(--s4);color:var(--text2);padding:3px 6px;border-radius:4px;font-size:11px">
-            <option value="">All categories</option>
-            <option value="design_quality">Design Quality</option>
-            <option value="niche_performance">Niche Performance</option>
-            <option value="platform_health">Platform Health</option>
-            <option value="agent_reliability">Agent Reliability</option>
-            <option value="prompt_performance">Prompt Performance</option>
-            <option value="scout_findings">Scout Findings</option>
-          </select>
-        </div>
-        <div id="memory-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>
-      </div>
-      <hr class="divider">
-      <!-- Finance -->
-      <div class="section-sub">
-        <div class="section-sub-title"><span><i class="ti ti-currency-dollar"></i> Finance</span></div>
-        <div class="three-col" id="finance-tiles" style="margin-bottom:14px">
-          <div class="stat-tile"><div class="stat-label">This Week Revenue</div><div class="stat-val" id="fin-wrev">—</div></div>
-          <div class="stat-tile"><div class="stat-label">This Week Net</div><div class="stat-val" id="fin-wnet">—</div></div>
-          <div class="stat-tile"><div class="stat-label">All-time Net</div><div class="stat-val" id="fin-atnet">—</div></div>
-          <div class="stat-tile"><div class="stat-label">Month Spend</div><div class="stat-val" id="fin-mspend">—</div><div class="stat-sub"><div class="progress-wrap" style="margin-top:4px"><div class="progress-fill acc" id="fin-spend-bar" style="width:0%"></div></div></div></div>
-          <div class="stat-tile"><div class="stat-label">Spend Cap</div><div class="stat-val" id="fin-cap">—</div></div>
-          <div class="stat-tile"><div class="stat-label">Recovery</div><div class="stat-val" id="fin-recover">—</div><div class="stat-sub" id="fin-recover-sub"></div></div>
-        </div>
-        <div class="two-col">
-          <div>
-            <div class="card-title">Cost by Agent</div>
-            <div id="fin-by-agent"></div>
-          </div>
-          <div>
-            <div class="card-title">Expenses Log</div>
-            <div id="fin-expenses"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Orchestrator ────────────────────────────────────────────────────── -->
-    <section class="section" id="s-orchestrator">
-      <h2 class="page-title"><i class="ti ti-message-dots"></i>Orchestrator</h2>
-      <div class="card" style="margin-bottom:10px;padding:10px 14px;font-size:11px;color:var(--text2)" id="orch-state-bar">
-        Loading system state…
-      </div>
-      <div class="chat-wrap">
-        <div class="chat-history" id="chat-history"></div>
-        <div class="chat-input-row">
-          <textarea class="chat-input" id="chat-input" placeholder="Ask the orchestrator anything…" onkeydown="chatKey(event)"></textarea>
-          <button class="btn btn-acc" onclick="sendChat()" id="chat-send"><i class="ti ti-send"></i>Send</button>
-        </div>
-      </div>
-    </section>
-
-  </main><!-- /content -->
-
-  <!-- Activity panel -->
-  <aside class="activity-panel">
-    <div class="activity-header">
-      <span>LIVE ACTIVITY</span>
-      <span style="font-size:10px;color:var(--text3)" id="act-count">—</span>
-    </div>
-    <div class="activity-list" id="activity-list">
-      <div class="act-empty">No activity yet</div>
-    </div>
-  </aside>
-
-</div><!-- /layout -->
-
-<!-- Task strip -->
-<div class="task-strip" id="task-strip">
-  <div class="strip-idle" id="strip-idle"><i class="ti ti-circle-check" style="color:var(--green)"></i>All agents idle</div>
 </div>
 
+<!-- ══ VIEWS ════════════════════════════════════════════════════════════════ -->
+<div class="views-container">
+
+  <!-- ── VIEW 1: HOME ──────────────────────────────────────────────────────── -->
+  <div class="view-home" id="view-home">
+    <div class="aurora" aria-hidden="true">
+      <div class="aurora-orb aurora-1"></div>
+      <div class="aurora-orb aurora-2"></div>
+      <div class="aurora-orb aurora-3"></div>
+    </div>
+
+    <!-- Business cards -->
+    <div class="home-cards-section">
+      <div class="cards-label-row">
+        <span class="cards-label blurtext">BUSINESSES</span>
+        <span class="cards-sub">click to manage</span>
+      </div>
+      <div class="biz-grid" id="biz-grid"><!-- injected --></div>
+    </div>
+
+    <!-- Pipeline flow -->
+    <div class="home-pipeline-section">
+      <div class="flow-hdr">
+        <span class="flow-title-text">PIPELINE FLOW</span>
+        <span style="font-size:10px;color:var(--text3)">click node to inspect</span>
+        <div class="flow-hdr-right">
+          <button class="btn btn-sm" onclick="loadConditions()">Conditions</button>
+          <button class="btn btn-sm" onclick="loadAgentGrid()">All Agents</button>
+          <button class="btn-acc btn-sm" id="btn-pipeline" onclick="runFullPipeline()"><i class="ti ti-player-play"></i> Run Full Pipeline</button>
+        </div>
+      </div>
+      <div class="flow-diagram">
+        <div class="flow-top-area">
+          <div class="flow-shared">
+            <div class="anode" id="node-research" onclick="openModuleOverlay('research')">
+              <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-research"></span><span class="anode-name">RESEARCH</span></div>
+              <div class="anode-body"><div class="anode-time" id="ntime-research">Never</div><div class="anode-last" id="nlast-research">Etsy + Fiverr</div></div>
+              <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('research')">RUN</button></div>
+            </div>
+            <div class="conn" id="conn-1"><div class="conn-line"><div class="conn-travel"></div><div class="conn-head"></div></div></div>
+            <div class="anode" id="node-design" onclick="openModuleOverlay('design')">
+              <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-design"></span><span class="anode-name">DESIGN</span></div>
+              <div class="anode-body"><div class="anode-time" id="ntime-design">Never</div><div class="anode-last" id="nlast-design">gpt-image-1</div></div>
+              <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('design')">RUN</button></div>
+            </div>
+            <div class="conn" id="conn-2"><div class="conn-line"><div class="conn-travel"></div><div class="conn-head"></div></div></div>
+            <div class="anode" id="node-qa" onclick="openModuleOverlay('qa')">
+              <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-qa"></span><span class="anode-name">QA</span></div>
+              <div class="anode-body"><div class="anode-time" id="ntime-qa">Never</div><div class="anode-last" id="nlast-qa">GPT-4o Vision</div></div>
+              <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('qa')">RUN</button></div>
+            </div>
+          </div>
+          <div class="fork-junction" id="fork-junction"><div class="fork-h"></div><div class="fork-v"></div></div>
+          <div class="flow-branches">
+            <div class="flow-branch" id="branch-etsy">
+              <div class="branch-arm-line" id="barm-etsy"></div>
+              <span class="branch-tag etsy-tag">ETSY</span>
+              <div class="branch-nodes">
+                <div class="anode" id="node-publisher" onclick="openModuleOverlay('publisher')">
+                  <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-publisher"></span><span class="anode-name">PUBLISHER</span></div>
+                  <div class="anode-body"><div class="anode-time" id="ntime-publisher">Never</div><div class="anode-last" id="nlast-publisher">Etsy/Printify</div></div>
+                  <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('publisher')">RUN</button></div>
+                </div>
+                <div class="conn conn-etsy"><div class="conn-line"><div class="conn-travel"></div><div class="conn-head"></div></div></div>
+                <div class="anode" id="node-performance" onclick="openModuleOverlay('performance')">
+                  <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-performance"></span><span class="anode-name">PERFORMANCE</span></div>
+                  <div class="anode-body"><div class="anode-time" id="ntime-performance">Never</div><div class="anode-last" id="nlast-performance">Listing stats</div></div>
+                  <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('performance')">RUN</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="flow-branch" id="branch-fiverr">
+              <div class="branch-arm-line" id="barm-fiverr"></div>
+              <span class="branch-tag fiverr-tag">FIVERR</span>
+              <div class="branch-nodes">
+                <div class="anode" id="node-fiverr_orders" onclick="openModuleOverlay('fiverr_orders')">
+                  <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-fiverr_orders"></span><span class="anode-name">FV ORDERS</span></div>
+                  <div class="anode-body"><div class="anode-time" id="ntime-fiverr_orders">Never</div><div class="anode-last" id="nlast-fiverr_orders">IMAP polling</div></div>
+                  <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('fiverr_orders')">RUN</button></div>
+                </div>
+                <div class="conn conn-fv"><div class="conn-line"><div class="conn-travel"></div><div class="conn-head"></div></div></div>
+                <div class="anode" id="node-fiverr_reviews" onclick="openModuleOverlay('fiverr_reviews')">
+                  <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-fiverr_reviews"></span><span class="anode-name">FV REVIEWS</span></div>
+                  <div class="anode-body"><div class="anode-time" id="ntime-fiverr_reviews">Never</div><div class="anode-last" id="nlast-fiverr_reviews">Review tracking</div></div>
+                  <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('fiverr_reviews')">RUN</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flow-support">
+          <span class="support-label">SUPPORT</span>
+          <div class="anode support" id="node-scout" onclick="openModuleOverlay('scout')">
+            <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-scout"></span><span class="anode-name" style="font-size:10px">SCOUT</span></div>
+            <div class="anode-body"><div class="anode-time" id="ntime-scout">Never</div><div class="anode-last" id="nlast-scout">Opportunities</div></div>
+            <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('scout')">RUN</button></div>
+          </div>
+          <div class="anode support" id="node-memory" onclick="openModuleOverlay('memory')">
+            <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-memory"></span><span class="anode-name" style="font-size:10px">MEMORY</span></div>
+            <div class="anode-body"><div class="anode-time" id="ntime-memory">Never</div><div class="anode-last" id="nlast-memory">Pattern learning</div></div>
+            <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('memory')">RUN</button></div>
+          </div>
+          <div class="anode support" id="node-anomaly" onclick="openModuleOverlay('anomaly')">
+            <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-anomaly"></span><span class="anode-name" style="font-size:10px">ANOMALY</span></div>
+            <div class="anode-body"><div class="anode-time" id="ntime-anomaly">Never</div><div class="anode-last" id="nlast-anomaly">Threshold checks</div></div>
+            <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('anomaly')">RUN</button></div>
+          </div>
+          <div class="anode support" id="node-prompt_evolution" onclick="openModuleOverlay('prompt_evolution')">
+            <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-prompt_evolution"></span><span class="anode-name" style="font-size:10px">PROMPT EVO</span></div>
+            <div class="anode-body"><div class="anode-time" id="ntime-prompt_evolution">Never</div><div class="anode-last" id="nlast-prompt_evolution">Prompt tuning</div></div>
+            <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('prompt_evolution')">RUN</button></div>
+          </div>
+          <div class="anode support" id="node-reporting" onclick="openModuleOverlay('reporting')">
+            <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-reporting"></span><span class="anode-name" style="font-size:10px">REPORTING</span></div>
+            <div class="anode-body"><div class="anode-time" id="ntime-reporting">Never</div><div class="anode-last" id="nlast-reporting">Weekly P&amp;L</div></div>
+            <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('reporting')">RUN</button></div>
+          </div>
+          <div class="anode support" id="node-fiverr_scout" onclick="openModuleOverlay('fiverr_scout')">
+            <div class="anode-hdr"><span class="anode-dot dot-gray" id="ndot-fiverr_scout"></span><span class="anode-name" style="font-size:10px">FV SCOUT</span></div>
+            <div class="anode-body"><div class="anode-time" id="ntime-fiverr_scout">Never</div><div class="anode-last" id="nlast-fiverr_scout">Gig research</div></div>
+            <div class="anode-foot"><button class="anode-run" onclick="event.stopPropagation();runAgent('fiverr_scout')">RUN</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /view-home -->
+
+  <!-- ── VIEW 2: BUSINESS DETAIL ─────────────────────────────────────────── -->
+  <div class="view-detail hidden" id="view-detail">
+    <div class="detail-topbar">
+      <div class="detail-row1">
+        <button class="back-btn" onclick="showView('home')"><i class="ti ti-arrow-left" style="font-size:10px"></i> Back</button>
+        <span class="detail-biz-name" id="detail-name">Business</span>
+        <span id="detail-platform-badge" class="badge" style="display:none"></span>
+        <span id="detail-status-badge" class="badge badge-green">Active</span>
+      </div>
+      <div class="det-stats-row" id="det-stats-row"><!-- injected --></div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-left">
+        <div class="detail-left-hdr">
+          <span class="detail-left-title">DESIGNS</span>
+          <div id="detail-gallery-filters" class="tabs" style="margin-left:8px"></div>
+        </div>
+        <div class="detail-scroll">
+          <div class="dc-grid" id="detail-designs-grid"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+        </div>
+      </div>
+      <div class="detail-right">
+        <div class="detail-right-hdr">
+          <span class="detail-right-title">PIPELINE MODULES</span>
+        </div>
+        <div class="detail-right-scroll" id="detail-modules-list"><!-- injected --></div>
+      </div>
+    </div>
+    <div class="detail-footer" id="detail-footer"><!-- injected --></div>
+  </div><!-- /view-detail -->
+
+</div><!-- /views-container -->
 </div><!-- /app -->
 
-<!-- Notification dropdown backdrop -->
-<div id="notif-backdrop" style="display:none;position:fixed;inset:0;z-index:150" onclick="closeNotifDropdown()"></div>
+<!-- ══ BOTTOM STRIP ══════════════════════════════════════════════════════════ -->
+<div class="task-strip" id="task-strip">
+  <div class="strip-idle" id="strip-idle"><i class="ti ti-circle-check"></i> All agents idle</div>
+  <div class="sched-ctrl">
+    <div class="sched-status">
+      <i class="ti ti-circle-filled" id="sched-dot2" style="color:#333;font-size:9px"></i>
+      Scheduler: <span id="sched-label2">idle</span>
+    </div>
+    <button class="btn btn-sm" id="btn-scheduler2" onclick="toggleScheduler()"><i class="ti ti-clock"></i> Start Scheduler</button>
+  </div>
+</div>
+
+<!-- ══ NOTIFICATION PANEL ════════════════════════════════════════════════════ -->
+<div class="notif-panel" id="notif-dropdown">
+  <div class="panel-hdr">
+    <span class="panel-hdr-title">ACTIVITY &amp; ALERTS</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:10px;color:var(--text3)" id="act-count"></span>
+      <button class="panel-close" onclick="closeNotifDropdown()">✕</button>
+    </div>
+  </div>
+  <div class="panel-scroll">
+    <div class="panel-section">Notifications</div>
+    <div id="notif-list"><div class="notif-empty">No alerts</div></div>
+    <div class="panel-section" style="margin-top:4px">Live Activity</div>
+    <div id="activity-list"><div class="act-empty">No activity yet</div></div>
+  </div>
+</div>
+
+<!-- ══ ORCHESTRATOR PANEL ════════════════════════════════════════════════════ -->
+<div class="orch-panel" id="orch-panel">
+  <div class="orch-hdr">
+    <span class="orch-hdr-title">ORCHESTRATOR</span>
+    <button class="panel-close" onclick="toggleOrchPanel()">✕</button>
+  </div>
+  <div class="orch-state-bar" id="orch-state-bar">Loading system state…</div>
+  <div class="chat-history" id="chat-history"></div>
+  <div class="chat-input-row">
+    <textarea class="chat-input" id="chat-input" placeholder="Ask the orchestrator anything…" onkeydown="chatKey(event)"></textarea>
+    <button class="chat-send" onclick="sendChat()" id="chat-send"><i class="ti ti-send"></i></button>
+  </div>
+</div>
+
+<!-- ══ COMPAT HIDDEN ELEMENTS ════════════════════════════════════════════════ -->
+<div style="display:none" aria-hidden="true">
+  <div id="s-overview" class="section active"></div><div id="s-streams" class="section"></div>
+  <div id="s-pipeline" class="section"></div><div id="s-intelligence" class="section"></div>
+  <div id="s-orchestrator" class="section"></div>
+  <div class="nav-item" data-section="pipeline"></div>
+  <span id="etsy-rev">$0</span><span id="etsy-orders">0</span><span id="etsy-active">0</span>
+  <span id="etsy-avg">—</span><span id="etsy-active-2">0</span><span id="etsy-design-stats"></span>
+  <span id="fv-rev">$0</span><span id="fv-orders">0</span><span id="fv-delivered">0</span>
+  <span id="fv-rating">—</span><span id="fv-gig-stats"></span>
+  <span id="gig-count-thumbnail">0</span><span id="gig-count-logo">0</span><span id="gig-count-social">0</span>
+  <span id="gig-rev-thumbnail">$0</span><span id="gig-rev-logo">$0</span><span id="gig-rev-social">$0</span>
+  <div id="ov-rev"></div><div id="ov-net"></div><div id="ov-spend"></div><div id="ov-spend-sub"></div>
+  <div id="ov-approved"></div><div id="ov-generated"></div><div id="ov-listings"></div>
+  <div id="ov-etsy-status"></div><div id="ov-etsy-summary"></div>
+  <div id="ov-fiverr-status"></div><div id="ov-fiverr-summary"></div>
+  <div id="ov-conditions"></div><div id="agent-grid"></div><div id="cond-full-table"></div>
+  <div id="notif-backdrop"></div><div id="sched-status"></div>
+  <div id="etsy-designs"></div><div id="fiverr-designs"></div>
+</div>
+
+<!-- ══ MODULE OVERLAY ════════════════════════════════════════════════════════ -->
+<div class="mod-overlay" id="mod-overlay">
+  <div class="mod-hdr">
+    <span class="mod-title" id="mod-title">MODULE</span>
+    <span class="mod-platform-badge badge" id="mod-badge" style="display:none"></span>
+    <span class="mod-status-dot" id="mod-dot"></span>
+    <span style="flex:1"></span>
+    <button class="btn btn-sm" id="mod-run-btn" style="display:none">&#9654; Run</button>
+    <button class="mod-close" onclick="closeModOverlay()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="mod-body">
+    <div class="mod-terminal" id="live-log"><span class="log-line ok">// select a module to view terminal output</span></div>
+    <div class="mod-panel" id="node-detail-content"></div>
+  </div>
+  <div class="mod-foot">
+    <div class="mod-foot-left">
+      <span id="mod-foot-time" style="font-size:11px;color:var(--text3)"></span>
+      <span id="mod-foot-cond" style="font-size:11px;flex:1"></span>
+    </div>
+    <button class="btn-acc btn-sm" id="mod-foot-run" onclick="_modFootRun()" style="display:none">Run Module</button>
+  </div>
+</div>
+
+<!-- ══ LIGHTBOX ══════════════════════════════════════════════════════════════ -->
+<div id="lightbox" class="lb-overlay" onclick="lbBackdropClick(event)">
+  <span class="lb-counter" id="lb-counter">1 / 1</span>
+  <button class="lb-close" onclick="closeLightbox()">&#10005;</button>
+  <button class="lb-arrow lb-prev" id="lb-prev" onclick="lightboxNav(-1)"><i class="ti ti-chevron-left"></i></button>
+  <button class="lb-arrow lb-next" id="lb-next" onclick="lightboxNav(1)"><i class="ti ti-chevron-right"></i></button>
+  <div class="lb-stage" id="lb-stage">
+    <img id="lb-img" src="" alt="" class="lb-image" style="display:none">
+    <div id="lb-no-img" class="lb-no-img" style="display:none"><i class="ti ti-photo-off"></i><span>No image file</span></div>
+  </div>
+  <div class="lb-footer">
+    <div class="lb-meta">
+      <span class="lb-niche" id="lb-niche"></span>
+      <span id="lb-badge"></span>
+      <span class="lb-qa" id="lb-qa"></span>
+      <span class="lb-info" id="lb-info"></span>
+    </div>
+    <div class="lb-actions" id="lb-actions"></div>
+  </div>
+</div>
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════════
-   Agentic Income Engine Dashboard — v3.0
-   5-section SPA: Overview | Income Streams | Pipeline | Intelligence | Orchestrator
+   Agentic Income Engine — v6.0  Two-level SPA
    ══════════════════════════════════════════════════════════════════════════ */
 
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {
-  section: 'overview',
-  etsyDesigns: [], fiverrDesigns: [],
-  conditions: {},
-  agentStatus: {},
-  proposals: [], proposalFilter: 'pending',
-  memory: [],
-  chatHistory: [],
-  notifCount: 0, notifRead: false,
-  taskCards: {}, // name → {el, start}
+  section:'overview',
+  etsyDesigns:[], fiverrDesigns:[],
+  conditions:{}, agentStatus:{},
+  proposals:[], proposalFilter:'pending',
+  memory:[], chatHistory:[],
+  notifCount:0, notifRead:false,
+  taskCards:{},
 };
-
-// ── Helpers ────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const $$ = sel => document.querySelectorAll(sel);
 
 async function apiFetch(url) {
-  try {
-    const r = await fetch(url, { cache: 'no-store' });
-    return await r.json();
-  } catch { return null; }
+  try { const r = await fetch(url,{cache:'no-store'}); return await r.json(); }
+  catch { return null; }
+}
+function fmtMoney(v){ return '$'+(parseFloat(v)||0).toFixed(2); }
+function fmtDate(s){ if(!s)return''; const d=new Date(s); return isNaN(d)?'':d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function timeAgo(s){
+  if(!s)return'';
+  const ms=Date.now()-new Date(s).getTime();
+  if(ms<60000)return'just now';
+  if(ms<3600000)return Math.floor(ms/60000)+'m ago';
+  if(ms<86400000)return Math.floor(ms/3600000)+'h ago';
+  return Math.floor(ms/86400000)+'d ago';
+}
+function elapsed(startIso){
+  if(!startIso)return'';
+  const s=Math.floor((Date.now()-new Date(startIso).getTime())/1000);
+  return s<60?s+'s':Math.floor(s/60)+'m '+(s%60)+'s';
 }
 
-function fmtMoney(v) {
-  const n = parseFloat(v) || 0;
-  return '$' + n.toFixed(2);
-}
-function fmtDate(s) {
-  if (!s) return '';
-  const d = new Date(s);
-  return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-function fmtTime(s) {
-  if (!s) return '';
-  const d = new Date(s);
-  return isNaN(d) ? '' : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-}
-function timeAgo(s) {
-  if (!s) return '';
-  const ms = Date.now() - new Date(s).getTime();
-  if (ms < 60000) return 'just now';
-  if (ms < 3600000) return Math.floor(ms/60000) + 'm ago';
-  if (ms < 86400000) return Math.floor(ms/3600000) + 'h ago';
-  return Math.floor(ms/86400000) + 'd ago';
-}
-function elapsed(startIso) {
-  if (!startIso) return '';
-  const s = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
-  if (s < 60) return s + 's';
-  return Math.floor(s/60) + 'm ' + (s%60) + 's';
+// ── CountUp animation ──────────────────────────────────────────────────────
+function countUp(el, target, prefix, decimals) {
+  if(!el) return;
+  prefix = prefix||''; decimals = decimals!=null ? decimals : (prefix==='$'?2:0);
+  const dur=600, start=performance.now();
+  function step(now){
+    const p=Math.min((now-start)/dur,1);
+    const ease=1-Math.pow(1-p,3);
+    const val=target*ease;
+    el.textContent=prefix+(decimals>0?val.toFixed(decimals):Math.round(val));
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
-// ── Navigation ─────────────────────────────────────────────────────────────
-function nav(el) {
-  $$('.nav-item').forEach(n => n.classList.remove('active'));
-  el.classList.add('active');
-  const sec = el.dataset.section;
-  state.section = sec;
-  $$('.section').forEach(s => s.classList.remove('active'));
-  $('s-' + sec).classList.add('active');
-  if (sec === 'streams')      { loadEtsyDesigns(); loadFiverrDesigns(); loadStreamStats(); }
-  if (sec === 'pipeline')     { loadConditions(); loadAgentGrid(); }
-  if (sec === 'intelligence') { loadProposals(); loadMemory(); loadFinance(); }
-  if (sec === 'orchestrator') { loadOrchState(); }
+// ── Nav stub ───────────────────────────────────────────────────────────────
+function nav(el){
+  $$('.nav-item').forEach(n=>n.classList.remove('active')); el.classList.add('active');
+  const sec=el.dataset.section; state.section=sec;
+  $$('.section').forEach(s=>s.classList.remove('active'));
+  const secEl=$('s-'+sec); if(secEl) secEl.classList.add('active');
 }
 
-// ── Run agent (SSE) ────────────────────────────────────────────────────────
+// ── Run agent ──────────────────────────────────────────────────────────────
 function runAgent(name) {
-  const ep = {
-    research:       '/run/research',
-    design:         '/run/design',
-    qa:             '/run/qa',
-    publisher:      '/run/publisher',
-    performance:    '/run/performance',
-    scout:          '/run/scout',
-    fiverr_scout:   '/run/fiverr_scout',
-    fiverr_orders:  '/run/fiverr_orders',
-    fiverr_reviews: '/run/fiverr_reviews',
-    fiverr_test:    '/run/fiverr_test',
-    memory:         '/run/memory',
-    anomaly:        '/run/anomaly',
-    prompt_evolution: '/run/prompt_evolution',
-    reporting:      '/run/reporting',
-    cleanup:        '/run/cleanup',
+  const ep={
+    research:'/run/research',design:'/run/design',qa:'/run/qa',
+    publisher:'/run/publisher',performance:'/run/performance',
+    scout:'/run/scout',fiverr_scout:'/run/fiverr_scout',
+    fiverr_orders:'/run/fiverr_orders',fiverr_reviews:'/run/fiverr_reviews',
+    fiverr_test:'/run/fiverr_test',memory:'/run/memory',
+    anomaly:'/run/anomaly',prompt_evolution:'/run/prompt_evolution',
+    reporting:'/run/reporting',cleanup:'/run/cleanup',
   }[name];
-  if (!ep) return;
-
-  _openTaskCard(name);
-  const log = $('live-log');
-  if (log) { log.innerHTML = ''; }
-
-  fetch(ep, { method: 'POST', cache: 'no-store' }).then(r => {
-    if (!r.ok || !r.body) return;
-    const reader = r.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
-    function pump() {
-      reader.read().then(({ done, value }) => {
-        if (done) return;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          const raw = line.slice(5).trim();
-          let msg;
-          try { msg = JSON.parse(raw); } catch { msg = raw; }
-          if (typeof msg === 'string' && msg.startsWith('__DONE__')) {
-            _closeTaskCard(name, msg.includes(':0') ? 'done' : 'error');
-            return;
+  if(!ep) return;
+  _openTaskCard(name); openModuleOverlay(name,true);
+  const log=$('live-log'); if(log) log.innerHTML='';
+  fetch(ep,{method:'POST',cache:'no-store'}).then(r=>{
+    if(!r.ok||!r.body) return;
+    const reader=r.body.getReader(); const dec=new TextDecoder(); let buf='';
+    function pump(){
+      reader.read().then(({done,value})=>{
+        if(done) return;
+        buf+=dec.decode(value,{stream:true});
+        const lines=buf.split('\n'); buf=lines.pop();
+        for(const line of lines){
+          if(!line.startsWith('data:')) continue;
+          const raw=line.slice(5).trim();
+          let msg; try{msg=JSON.parse(raw);}catch{msg=raw;}
+          if(typeof msg==='string'&&msg.startsWith('__DONE__')){
+            _closeTaskCard(name,msg.includes(':0')?'done':'error'); return;
           }
-          if (log) {
-            const d = document.createElement('div');
-            d.className = 'log-line' + (msg.toLowerCase?.().includes('error') ? ' err' : '');
-            d.textContent = msg;
-            log.appendChild(d);
-            log.scrollTop = log.scrollHeight;
+          if(log){
+            const d=document.createElement('div');
+            d.className='log-line'+(msg.toLowerCase?.().includes('error')?' err':'');
+            d.textContent=msg; log.appendChild(d); log.scrollTop=log.scrollHeight;
           }
         }
         pump();
@@ -650,575 +790,808 @@ function runAgent(name) {
 }
 
 // ── Task cards ─────────────────────────────────────────────────────────────
-function _openTaskCard(name) {
-  const strip = $('task-strip');
-  $('strip-idle').style.display = 'none';
-  if (state.taskCards[name]) { state.taskCards[name].el.remove(); }
-  const card = document.createElement('div');
-  card.className = 'task-card running';
-  card.innerHTML = `
-    <button class="tc-dismiss" onclick="this.closest('.task-card').remove()">✕</button>
+function _openTaskCard(name){
+  const strip=$('task-strip'); $('strip-idle').style.display='none';
+  if(state.taskCards[name]) state.taskCards[name].el.remove();
+  const card=document.createElement('div'); card.className='task-card running';
+  card.innerHTML=`<button class="tc-dismiss" onclick="this.closest('.task-card').remove()">&#10005;</button>
     <div class="tc-name"><span class="pulse-dot"></span>${name}</div>
-    <div class="tc-step">Starting…</div>
+    <div class="tc-step">Starting&#8230;</div>
     <div class="tc-bar-bg"><div class="tc-bar" style="width:0%"></div></div>
-    <div class="tc-footer"><span class="tc-elapsed">0s</span><span class="tc-cost"></span></div>`;
-  strip.appendChild(card);
-  state.taskCards[name] = { el: card, start: Date.now() };
+    <div style="display:flex;gap:6px"><span class="tc-elapsed">0s</span><span class="tc-cost"></span></div>`;
+  strip.appendChild(card); state.taskCards[name]={el:card,start:Date.now()};
 }
-function _closeTaskCard(name, result) {
-  const tc = state.taskCards[name];
-  if (!tc) return;
+function _closeTaskCard(name,result){
+  const tc=state.taskCards[name]; if(!tc) return;
   tc.el.classList.remove('running');
-  tc.el.classList.add(result === 'done' ? 'done' : 'error-state');
-  tc.el.querySelector('.tc-step').textContent = result === 'done' ? 'Complete' : 'Error';
-  tc.el.querySelector('.tc-bar').style.width = '100%';
-  if (result !== 'done') tc.el.querySelector('.tc-bar').classList.add('error-bar');
-  if (result === 'done') {
-    setTimeout(() => { tc.el.remove(); _checkStripIdle(); }, 30000);
-  }
+  tc.el.classList.add(result==='done'?'done':'error-state');
+  tc.el.querySelector('.tc-step').textContent=result==='done'?'Complete':'Error';
+  tc.el.querySelector('.tc-bar').style.width='100%';
+  if(result!=='done') tc.el.querySelector('.tc-bar').classList.add('error-bar');
+  if(result==='done') setTimeout(()=>{ tc.el.remove(); _checkStripIdle(); },30000);
 }
-function _checkStripIdle() {
-  const cards = document.querySelectorAll('.task-card');
-  $('strip-idle').style.display = cards.length === 0 ? 'flex' : 'none';
+function _checkStripIdle(){
+  const cards=document.querySelectorAll('.task-card');
+  $('strip-idle').style.display=cards.length===0?'flex':'none';
 }
 
-// ── Agent status polling (3 s) ─────────────────────────────────────────────
-async function pollAgentStatus() {
-  const data = await apiFetch('/agent-status');
-  if (!data) return;
-  state.agentStatus = data;
-
-  // Update task cards
-  for (const [name, info] of Object.entries(data)) {
-    if (name === '__spend__') continue;
-    const tc = state.taskCards[name];
-    if (!tc) continue;
-    tc.el.querySelector('.tc-step').textContent = info.current_step || '…';
-    tc.el.querySelector('.tc-bar').style.width  = (info.progress || 0) + '%';
-    tc.el.querySelector('.tc-elapsed').textContent = elapsed(info.started_at);
-    if (info.cost_this_run) tc.el.querySelector('.tc-cost').textContent = '$' + info.cost_this_run.toFixed(4);
+// ── Agent status polling ───────────────────────────────────────────────────
+async function pollAgentStatus(){
+  const data=await apiFetch('/agent-status'); if(!data) return;
+  state.agentStatus=data;
+  for(const [name,info] of Object.entries(data)){
+    if(name==='__spend__') continue;
+    const tc=state.taskCards[name]; if(!tc) continue;
+    tc.el.querySelector('.tc-step').textContent=info.current_step||'&#8230;';
+    tc.el.querySelector('.tc-bar').style.width=(info.progress||0)+'%';
+    tc.el.querySelector('.tc-elapsed').textContent=elapsed(info.started_at);
+    if(info.cost_this_run) tc.el.querySelector('.tc-cost').textContent='$'+info.cost_this_run.toFixed(4);
   }
-
-  // Header spend
-  const sp = data.__spend__;
-  if (sp) {
-    const pct = Math.min(100, sp.month_spend / sp.spend_cap * 100);
-    const col  = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--yellow)' : 'var(--acc)';
-    $('hdr-spend').innerHTML = `<span style="color:${col}"><b>$${sp.month_spend.toFixed(2)}</b></span> <span>/ $${sp.spend_cap.toFixed(2)} cap</span>`;
+  const sp=data.__spend__;
+  if(sp){
+    const pct=Math.min(100,sp.month_spend/sp.spend_cap*100);
+    const col=pct>80?'var(--red)':pct>60?'var(--yellow)':'var(--acc)';
+    const byProv=sp.by_provider||{};
+    const provOrder=['anthropic','openai','google'];
+    const allProvs=[...new Set([...provOrder,...Object.keys(byProv)])].filter(p=>byProv[p]>0);
+    const provLabel={anthropic:'Claude (Anthropic)',openai:'OpenAI',google:'Google AI'};
+    const rowsHtml=allProvs.map(p=>`<div class="st-row"><span>${provLabel[p]||p}</span><span>$${(byProv[p]||0).toFixed(4)}</span></div>`).join('')||'<div class="st-row"><span>No costs yet</span><span></span></div>';
+    const hdr=$('hdr-spend');
+    if(hdr) hdr.innerHTML=`<span style="color:${col}"><b>$${sp.month_spend.toFixed(2)}</b></span><span style="font-size:10px;color:var(--text3)"> / $${sp.spend_cap.toFixed(0)}</span>`;
+    const tip=$('spend-tooltip-body');
+    if(tip) tip.innerHTML=rowsHtml+`<div class="st-row st-total"><span>Total</span><span>$${sp.month_spend.toFixed(4)}</span></div>`;
+    const bar=$('spend-bar-fill');
+    if(bar){ bar.style.width=pct+'%'; bar.style.background=col; }
   }
-
-  // Agent grid dots
+  updateNodeDots(data);
+  updateModCardDots(data);
   loadAgentGridStatus();
 }
 
-// ── Activity feed ──────────────────────────────────────────────────────────
-const ACT_ICONS = {
-  design_generated:'ti-photo',design_approved:'ti-circle-check',design_rejected:'ti-circle-x',
-  order_received:'ti-mail-opened',order_fulfilled:'ti-package',listing_published:'ti-world-upload',
-  research_complete:'ti-microscope',error:'ti-alert-triangle',sale:'ti-cash',
-  proposal_found:'ti-bulb',system:'ti-settings',
-};
-const ACT_COLORS = {
-  design_approved:'var(--green)',design_rejected:'var(--red)',error:'var(--red)',
-  sale:'var(--acc)',order_received:'var(--blue)',order_fulfilled:'var(--green)',
-  proposal_found:'var(--yellow)',system:'var(--text3)',
-};
-
-async function loadActivity() {
-  const rows = await apiFetch('/activity?limit=50');
-  if (!rows) return;
-  const list = $('activity-list');
-  if (!rows.length) { list.innerHTML = '<div class="act-empty">No activity yet</div>'; return; }
-  $('act-count').textContent = rows.length;
-  list.innerHTML = rows.map(r => {
-    const icon  = ACT_ICONS[r.event_type]  || 'ti-point';
-    const color = ACT_COLORS[r.event_type] || 'var(--text2)';
-    return `<div class="act-item">
-      <div class="act-icon" style="color:${color}"><i class="ti ${icon}"></i></div>
-      <div class="act-body">
-        <div class="act-msg">${r.message}</div>
-        <div class="act-meta">${r.agent} · ${timeAgo(r.created_at)}</div>
-      </div>
-    </div>`;
-  }).join('');
+// ── Flow node dots ─────────────────────────────────────────────────────────
+function updateNodeDots(data){
+  const ETSY=new Set(['research','design','qa','publisher','performance']);
+  const FV=new Set(['fiverr_orders','fiverr_reviews','fiverr_scout']);
+  let anyEtsy=false,anyFiverr=false,anyShared=false;
+  for(const [name,info] of Object.entries(data)){
+    if(name==='__spend__') continue;
+    if(info.status==='running'){
+      if(ETSY.has(name)) anyEtsy=true;
+      if(FV.has(name)) anyFiverr=true;
+      if(['research','design','qa'].includes(name)) anyShared=true;
+    }
+    const dot=$('ndot-'+name),last=$('nlast-'+name),time=$('ntime-'+name),node=$('node-'+name);
+    if(!dot) continue;
+    const cm={running:'dot-yellow',complete:'dot-green',error:'dot-red',idle:'dot-gray'};
+    dot.className='anode-dot '+(cm[info.status]||'dot-gray');
+    if(last&&info.current_step) last.textContent=info.current_step.slice(0,32);
+    if(time&&info.started_at) time.textContent=timeAgo(info.started_at);
+    if(node){
+      node.classList.remove('running-node','error-node','done-node');
+      if(info.status==='running') node.classList.add('running-node');
+      else if(info.status==='error') node.classList.add('error-node');
+      else if(info.status==='complete') node.classList.add('done-node');
+    }
+  }
+  ['conn-1','conn-2'].forEach(id=>{ const c=$(id); if(c) c.classList.toggle('active',anyShared); });
+  const bEtsy=$('branch-etsy'),bFV=$('branch-fiverr'),barmE=$('barm-etsy'),barmF=$('barm-fiverr'),fork=$('fork-junction');
+  if(bEtsy) bEtsy.classList.toggle('active-etsy',anyEtsy);
+  if(bFV) bFV.classList.toggle('active-fiverr',anyFiverr);
+  if(barmE) barmE.style.background=anyEtsy?'var(--acc)':'#2a2a2a';
+  if(barmF) barmF.style.background=anyFiverr?'var(--acc)':'#2a2a2a';
+  if(fork) fork.classList.toggle('active',anyEtsy||anyFiverr);
+  $$('.conn-etsy').forEach(c=>c.classList.toggle('active',anyEtsy));
+  $$('.conn-fv').forEach(c=>c.classList.toggle('active',anyFiverr));
 }
 
-// ── Notifications ──────────────────────────────────────────────────────────
-async function loadNotifications() {
-  const rows = await apiFetch('/notifications');
-  if (!rows || !rows.length) {
-    $('notif-list').innerHTML = '<div class="notif-empty">No alerts</div>';
-    $('bell-badge').classList.add('hidden');
-    return;
-  }
-  if (!state.notifRead) {
-    $('bell-badge').textContent = rows.length;
-    $('bell-badge').classList.remove('hidden');
-  }
-  const icons = { error:'ti-alert-triangle', proposal_found:'ti-bulb', order_received:'ti-mail-opened', sale:'ti-cash' };
-  const colors = { error:'var(--red)', proposal_found:'var(--yellow)', order_received:'var(--blue)', sale:'var(--acc)' };
-  $('notif-list').innerHTML = rows.map(r => `
-    <div class="notif-item">
-      <div class="notif-icon" style="color:${colors[r.event_type]||'var(--text2)'}"><i class="ti ${icons[r.event_type]||'ti-bell'}"></i></div>
-      <div class="notif-body">
-        <div class="notif-msg">${r.message}</div>
-        <div class="notif-time">${r.agent} · ${timeAgo(r.created_at)}</div>
-      </div>
-    </div>`).join('');
-}
-function toggleNotifDropdown() {
-  const dd = $('notif-dropdown');
-  const bd = $('notif-backdrop');
-  const open = dd.style.display !== 'none';
-  dd.style.display = open ? 'none' : 'block';
-  bd.style.display  = open ? 'none' : 'block';
-  if (!open) { state.notifRead = true; $('bell-badge').classList.add('hidden'); }
-}
-function closeNotifDropdown() {
-  $('notif-dropdown').style.display = 'none';
-  $('notif-backdrop').style.display = 'none';
-}
-function clearNotifications() { closeNotifDropdown(); }
-
-// ── Overview ───────────────────────────────────────────────────────────────
-async function loadOverview() {
-  const [stats, etsy, fiverr, cond] = await Promise.all([
-    apiFetch('/stats'), apiFetch('/etsy/stats'), apiFetch('/fiverr/stats'),
-    apiFetch('/scheduler/conditions'),
-  ]);
-
-  if (stats) {
-    $('ov-rev').textContent      = fmtMoney(stats.week_revenue);
-    $('ov-net').textContent      = fmtMoney(stats.week_net);
-    $('ov-listings').textContent = stats.listings_published ?? '0';
-    $('ov-generated').textContent= stats.designed_today ?? '0';
-    const spend = stats.month_spend || 0, cap = stats.spend_cap || 100;
-    $('ov-spend').textContent    = '$' + spend.toFixed(2);
-    $('ov-spend-sub').textContent= Math.round(spend/cap*100) + '% of cap';
-
-    // Approved unpublished
-    apiFetch('/designs?platform=etsy').then(d => {
-      if (!d) return;
-      const n = (d || []).filter(x => x.status === 'approved').length;
-      $('ov-approved').textContent = n;
-    });
-  }
-
-  if (etsy) {
-    const active = etsy.active_listings || 0;
-    $('ov-etsy-status').textContent = active > 0 ? 'Active' : 'Setting Up';
-    $('ov-etsy-status').className   = 'badge ' + (active > 0 ? 'badge-green' : 'badge-yellow');
-    $('ov-etsy-summary').innerHTML  = `${active} active listing${active!==1?'s':''} · ${fmtMoney(etsy.revenue_this_week)} this week`;
-  }
-  if (fiverr) {
-    const del = fiverr.delivered_total || 0;
-    $('ov-fiverr-status').textContent = del > 0 ? 'Active' : 'Setting Up';
-    $('ov-fiverr-status').className   = 'badge ' + (del > 0 ? 'badge-green' : 'badge-yellow');
-    $('ov-fiverr-summary').innerHTML  = `${del} delivered · ${fmtMoney(fiverr.revenue_this_week)} this week`;
-  }
-
-  if (cond) {
-    state.conditions = cond;
-    const names = ['research','design','publisher','fiverr_orders','performance','memory','anomaly','scout','reporting','prompt_evolution'];
-    $('ov-conditions').innerHTML = names.map(n => {
-      const c = cond[n] || {};
-      const run = c.should_run !== false;
-      return `<div class="cond-item">
-        <div class="cond-dot ${run?'run':'skip'}"></div>
-        <div><div class="cond-name">${n.replace(/_/g,' ')}</div><div class="cond-reason">${(c.reason||'').slice(0,50)}</div></div>
-      </div>`;
-    }).join('');
+// ── Module card dots (detail view) ─────────────────────────────────────────
+function updateModCardDots(data){
+  const colMap={running:'var(--yellow)',complete:'var(--green)',error:'var(--red)',idle:'#2a2a2a'};
+  for(const [name,info] of Object.entries(data)){
+    if(name==='__spend__') continue;
+    const dot=$('mc-dot-'+name),time=$('mc-time-'+name),last=$('mc-last-'+name);
+    if(dot) dot.style.background=colMap[info.status]||'#2a2a2a';
+    if(time&&info.started_at) time.textContent=timeAgo(info.started_at);
+    if(last&&info.current_step) last.textContent=info.current_step.slice(0,30);
   }
 }
 
-// ── Streams ────────────────────────────────────────────────────────────────
-let etsyFilter = 'all', fiverrFilter = 'all';
+// ── Activity + Notifications ───────────────────────────────────────────────
+const ACT_ICONS={design_generated:'ti-photo',design_approved:'ti-circle-check',design_rejected:'ti-circle-x',order_received:'ti-mail-opened',order_fulfilled:'ti-package',listing_published:'ti-world-upload',research_complete:'ti-microscope',error:'ti-alert-triangle',sale:'ti-cash',proposal_found:'ti-bulb',system:'ti-settings'};
+const ACT_COLORS={design_approved:'var(--green)',design_rejected:'var(--red)',error:'var(--red)',sale:'var(--acc)',order_received:'var(--blue)',order_fulfilled:'var(--green)',proposal_found:'var(--yellow)',system:'var(--text3)'};
 
-function filterDesigns(platform, filter, btn) {
-  if (btn) {
-    const parent = btn.closest('.tabs');
-    if (parent) parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-  }
-  if (platform === 'etsy') { etsyFilter = filter; renderEtsyDesigns(); }
-  else { fiverrFilter = filter; renderFiverrDesigns(); }
+async function loadActivity(){
+  const rows=await apiFetch('/activity?limit=50'); if(!rows) return;
+  const list=$('activity-list'); if(!list) return;
+  if(!rows.length){ list.innerHTML='<div class="act-empty">No activity yet</div>'; return; }
+  const cnt=$('act-count'); if(cnt) cnt.textContent=rows.length+' events';
+  list.innerHTML=rows.map(r=>`<div class="act-item"><div class="act-icon" style="color:${ACT_COLORS[r.event_type]||'var(--text2)'}"><i class="ti ${ACT_ICONS[r.event_type]||'ti-point'}"></i></div><div class="act-body"><div class="act-msg">${r.message}</div><div class="act-meta">${r.agent} &middot; ${timeAgo(r.created_at)}</div></div></div>`).join('');
 }
 
-async function loadStreamStats() {
-  const [etsy, fiverr, eStats, fStats] = await Promise.all([
-    apiFetch('/etsy/stats'), apiFetch('/fiverr/stats'),
-    apiFetch('/designs/etsy/stats'), apiFetch('/designs/fiverr/stats'),
-  ]);
-  if (etsy) {
-    $('etsy-active').textContent = etsy.active_listings ?? '0';
-    $('etsy-rev').textContent    = fmtMoney(etsy.revenue_this_week);
-    $('etsy-orders').textContent = etsy.orders_this_week ?? '0';
-    $('etsy-avg').textContent    = fmtMoney(etsy.avg_net_per_sale);
-  }
-  if (fiverr) {
-    $('fv-delivered').textContent = fiverr.delivered_total ?? '0';
-    $('fv-orders').textContent    = fiverr.orders_this_week ?? '0';
-    $('fv-rev').textContent       = fmtMoney(fiverr.revenue_this_week);
-    $('fv-rating').textContent    = fiverr.avg_rating != null ? fiverr.avg_rating.toFixed(1) + ' ★' : '—';
-  }
-  if (eStats) {
-    $('etsy-design-stats').textContent =
-      `${eStats.generated_today} generated · ${eStats.approved_today} approved · ${eStats.rejected_today} rejected · ${eStats.approval_rate}% pass rate`;
-  }
+async function loadNotifications(){
+  const rows=await apiFetch('/notifications');
+  const el=$('notif-list'); if(!el) return;
+  if(!rows||!rows.length){ el.innerHTML='<div class="notif-empty">No alerts</div>'; $('bell-badge').classList.add('hidden'); return; }
+  if(!state.notifRead){ $('bell-badge').textContent=rows.length; $('bell-badge').classList.remove('hidden'); }
+  const icons={error:'ti-alert-triangle',proposal_found:'ti-bulb',order_received:'ti-mail-opened',sale:'ti-cash'};
+  const colors={error:'var(--red)',proposal_found:'var(--yellow)',order_received:'var(--blue)',sale:'var(--acc)'};
+  el.innerHTML=rows.map(r=>`<div class="notif-item"><div class="notif-icon" style="color:${colors[r.event_type]||'var(--text2)'}"><i class="ti ${icons[r.event_type]||'ti-bell'}"></i></div><div class="notif-body"><div class="notif-msg">${r.message}</div><div class="notif-time">${r.agent} &middot; ${timeAgo(r.created_at)}</div></div></div>`).join('');
 }
 
-async function loadEtsyDesigns() {
-  $('etsy-designs').innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
-  const raw = await apiFetch('/designs?platform=etsy');
-  state.etsyDesigns = (raw || []).filter(d => d.platform === 'etsy');
+function toggleNotifDropdown(){
+  const panel=$('notif-dropdown'),willOpen=!panel.classList.contains('open');
+  panel.classList.toggle('open');
+  if(willOpen){ state.notifRead=true; $('bell-badge').classList.add('hidden'); loadNotifications(); loadActivity(); }
+}
+function closeNotifDropdown(){ $('notif-dropdown').classList.remove('open'); }
+function clearNotifications(){ closeNotifDropdown(); }
+
+// ── Orchestrator panel ─────────────────────────────────────────────────────
+function toggleOrchPanel(){
+  const panel=$('orch-panel'),willOpen=!panel.classList.contains('open');
+  panel.classList.toggle('open');
+  if(willOpen) loadOrchState();
+}
+
+// ── Overview (topbar pills) ────────────────────────────────────────────────
+async function loadOverview(){
+  const [stats,etsy,fiverr,cond]=await Promise.all([apiFetch('/stats'),apiFetch('/etsy/stats'),apiFetch('/fiverr/stats'),apiFetch('/scheduler/conditions')]);
+  if(stats){
+    countUp($('pill-revenue'),parseFloat(stats.week_revenue)||0,'$');
+    countUp($('pill-net'),parseFloat(stats.week_net)||0,'$');
+    countUp($('pill-listings'),parseInt(stats.listings_published||0),'',0);
+    if($('ov-rev')) $('ov-rev').textContent=fmtMoney(stats.week_revenue);
+    if($('ov-net')) $('ov-net').textContent=fmtMoney(stats.week_net);
+    if($('ov-listings')) $('ov-listings').textContent=stats.listings_published??'0';
+    if($('ov-generated')) $('ov-generated').textContent=stats.designed_today??'0';
+    const spend=stats.month_spend||0,cap=stats.spend_cap||100;
+    if($('ov-spend')) $('ov-spend').textContent='$'+spend.toFixed(2);
+    if($('ov-spend-sub')) $('ov-spend-sub').textContent=Math.round(spend/cap*100)+'% of cap';
+  }
+  if(etsy){
+    if($('ov-etsy-status')) $('ov-etsy-status').textContent=etsy.active_listings>0?'Active':'Setting Up';
+    if($('ov-etsy-summary')) $('ov-etsy-summary').textContent=`${etsy.active_listings||0} active &middot; ${fmtMoney(etsy.revenue_this_week)} this week`;
+  }
+  if(fiverr){
+    if($('ov-fiverr-status')) $('ov-fiverr-status').textContent=fiverr.delivered_total>0?'Active':'Setting Up';
+    if($('ov-fiverr-summary')) $('ov-fiverr-summary').textContent=`${fiverr.delivered_total||0} delivered &middot; ${fmtMoney(fiverr.revenue_this_week)} this week`;
+  }
+  if(cond) state.conditions=cond;
+}
+
+// ── Stream stats ───────────────────────────────────────────────────────────
+let etsyFilter='all', fiverrFilter='all', fiverrGigFilter='all';
+
+function filterDesigns(platform,filter,btn){
+  if(btn){ const p=btn.closest('.tabs')||btn.parentElement; if(p) p.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); }
+  if(platform==='etsy'){ etsyFilter=filter; renderDetailDesigns('etsy'); }
+  else{ fiverrFilter=filter; renderDetailDesigns('fiverr'); }
+}
+function filterFiverrGig(gig,btn){
+  if(btn){ const p=btn.closest('.tabs')||btn.parentElement; if(p) p.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); }
+  fiverrGigFilter=gig; renderDetailDesigns('fiverr');
+}
+
+function _setCardStat(id,val){
+  const el=$(id); if(!el) return;
+  el.classList.remove('shimmer-load'); el.textContent=val;
+}
+function _updateProgress(id,val,target){
+  const el=$(id); if(!el) return;
+  el.style.width=Math.min(100,(val/target)*100)+'%';
+}
+
+async function loadStreamStats(){
+  const [etsy,fiverr,eStats]=await Promise.all([apiFetch('/etsy/stats'),apiFetch('/fiverr/stats'),apiFetch('/designs/etsy/stats')]);
+  if(etsy){
+    if($('etsy-active')) $('etsy-active').textContent=etsy.active_listings??'0';
+    if($('etsy-rev')) $('etsy-rev').textContent=fmtMoney(etsy.revenue_this_week);
+    if($('etsy-orders')) $('etsy-orders').textContent=etsy.orders_this_week??'0';
+    if($('etsy-avg')) $('etsy-avg').textContent=fmtMoney(etsy.avg_net_per_sale);
+    if($('etsy-active-2')) $('etsy-active-2').textContent=etsy.active_listings??'0';
+    _setCardStat('card-e-rev',fmtMoney(etsy.revenue_this_week));
+    _setCardStat('card-e-orders',etsy.orders_this_week??'0');
+    _setCardStat('card-e-active',etsy.active_listings??'0');
+    _updateProgress('prog-etsy',parseFloat(etsy.revenue_this_week)||0,200);
+  }
+  if(fiverr){
+    if($('fv-delivered')) $('fv-delivered').textContent=fiverr.delivered_total??'0';
+    if($('fv-orders')) $('fv-orders').textContent=fiverr.orders_this_week??'0';
+    if($('fv-rev')) $('fv-rev').textContent=fmtMoney(fiverr.revenue_this_week);
+    if($('fv-rating')) $('fv-rating').textContent=fiverr.avg_rating!=null?fiverr.avg_rating.toFixed(1)+' &#9733;':'&#8212;';
+    const b=fiverr.gig_breakdown||{};
+    if($('fv-gig-stats')) $('fv-gig-stats').textContent=`Thumbnails: ${b.thumbnail||0}  &middot;  Logos: ${b.logo||0}  &middot;  Social: ${b.social_media||0}`;
+    if($('gig-count-thumbnail')) $('gig-count-thumbnail').textContent=b.thumbnail||0;
+    if($('gig-count-logo')) $('gig-count-logo').textContent=b.logo||0;
+    if($('gig-count-social')) $('gig-count-social').textContent=b.social_media||0;
+    const totalRev=parseFloat(fiverr.revenue_this_week)||0;
+    _setCardStat('card-fvt-orders',fiverr.orders_this_week??'0');
+    _setCardStat('card-fvt-del',fiverr.delivered_total??'0');
+    _setCardStat('card-fvt-rev',fmtMoney(fiverr.revenue_this_week));
+    _setCardStat('card-fvl-count',b.logo||0);
+    _setCardStat('card-fvl-orders',fiverr.orders_this_week??'0');
+    _setCardStat('card-fvl-rev',fmtMoney(fiverr.revenue_this_week));
+    _setCardStat('card-fvs-count',b.social_media||0);
+    _setCardStat('card-fvs-orders',fiverr.orders_this_week??'0');
+    _setCardStat('card-fvs-rev',fmtMoney(fiverr.revenue_this_week));
+    _updateProgress('prog-fvt',totalRev*0.5,100);
+    _updateProgress('prog-fvl',totalRev*0.25,50);
+    _updateProgress('prog-fvs',totalRev*0.25,50);
+  }
+  if(eStats&&$('etsy-design-stats'))
+    $('etsy-design-stats').textContent=`${eStats.generated_today} gen &middot; ${eStats.approved_today} pass &middot; ${eStats.approval_rate}%`;
+}
+
+// ── Designs ────────────────────────────────────────────────────────────────
+async function loadEtsyDesigns(){
+  const el=$('etsy-designs'); if(el) el.innerHTML='';
+  const raw=await apiFetch('/designs?platform=etsy');
+  state.etsyDesigns=(raw||[]).filter(d=>d.platform==='etsy');
   renderEtsyDesigns();
+  if(_currentBiz==='etsy') renderDetailDesigns('etsy');
 }
-
-async function loadFiverrDesigns() {
-  $('fiverr-designs').innerHTML = '<div class="loading"><span class="spinner"></span>Loading...</div>';
-  const raw = await apiFetch('/designs?platform=fiverr');
-  state.fiverrDesigns = (raw || []).filter(d => d.platform === 'fiverr');
+async function loadFiverrDesigns(){
+  const el=$('fiverr-designs'); if(el) el.innerHTML='';
+  const raw=await apiFetch('/designs?platform=fiverr');
+  state.fiverrDesigns=(raw||[]).filter(d=>d.platform==='fiverr');
   renderFiverrDesigns();
+  if(_currentBiz&&_currentBiz.startsWith('fiverr')) renderDetailDesigns('fiverr');
 }
 
-function etsyStatusBadge(status) {
-  const m = { approved:'badge-green', rejected:'badge-red', published:'badge-blue', generated:'badge-gray' };
-  const l = { approved:'Approved', rejected:'Rejected', published:'Published', generated:'Generated' };
-  return `<span class="badge ${m[status]||'badge-gray'}">${l[status]||status}</span>`;
+function etsyStatusBadge(s){ const m={approved:'badge-green',rejected:'badge-red',published:'badge-blue',generated:'badge-gray'}; const l={approved:'Approved',rejected:'Rejected',published:'Published',generated:'Generated'}; return `<span class="badge ${m[s]||'badge-gray'}">${l[s]||s}</span>`; }
+function fiverrStatusBadge(s){ const m={published:'badge-green',approved:'badge-yellow',rejected:'badge-red',generated:'badge-gray'}; const l={published:'Delivered',approved:'Ready',rejected:'Rejected',generated:'Generating'}; return `<span class="badge ${m[s]||'badge-gray'}">${l[s]||s}</span>`; }
+function _overrideBtns(status,dbId){
+  if(!dbId) return '';
+  const approve=`<button class="btn-approve" onclick="overrideDesign('${dbId}','approved',this)">+ Approve</button>`;
+  const reject=`<button class="btn-reject" onclick="overrideDesign('${dbId}','rejected',this)">- Reject</button>`;
+  if(status==='approved') return `<div class="dc-actions">${reject}</div>`;
+  if(status==='rejected') return `<div class="dc-actions">${approve}</div>`;
+  return `<div class="dc-actions">${approve}${reject}</div>`;
 }
-function fiverrStatusBadge(status) {
-  const m = { published:'badge-green', approved:'badge-yellow', rejected:'badge-red', generated:'badge-gray' };
-  const l = { published:'Delivered', approved:'Ready', rejected:'Rejected', generated:'Generating' };
-  return `<span class="badge ${m[status]||'badge-gray'}">${l[status]||status}</span>`;
-}
+function _fiverrGigBadge(gt){ const map={thumbnail:'#5b8af7',logo:'#f7a25b',social_media:'#a25bf7'}; const lbl={thumbnail:'Thumb',logo:'Logo',social_media:'Social'}; const col=map[gt]||'#888',txt=lbl[gt]||(gt||'Thumb'); return `<span style="font-size:8px;background:${col}22;color:${col};border:1px solid ${col}44;padding:1px 4px;margin-left:2px">${txt}</span>`; }
 
-function renderEtsyDesigns() {
-  let designs = state.etsyDesigns;
-  if (etsyFilter !== 'all') designs = designs.filter(d => d.status === etsyFilter);
-  const el = $('etsy-designs');
-  if (!designs.length) {
-    el.innerHTML = '<div class="empty-state"><i class="ti ti-photo-off"></i><p>No designs found</p></div>';
-    return;
+function _designCardHtml(d,idx,platform){
+  const realIdx=platform==='etsy'?state.etsyDesigns.indexOf(d):state.fiverrDesigns.indexOf(d);
+  const actualIdx=realIdx>=0?realIdx:idx;
+  const img=d.has_file!==false?`<img src="${d.url}" alt="${d.niche||''}" loading="lazy" style="cursor:zoom-in" onclick="openLightbox('${platform}',${actualIdx})" onerror="this.parentElement.innerHTML='<div class=dc-ph><i class=ti ti-photo-off></i></div>'">`:`<div class="dc-ph" style="cursor:zoom-in" onclick="openLightbox('${platform}',${actualIdx})"><i class="ti ti-photo-off"></i></div>`;
+  if(platform==='etsy'){
+    return `<div class="dc${d.status==='rejected'?' rejected':''}" data-design-id="${d.db_id||''}">
+      ${img}<div class="dc-b"><div class="dc-niche">${d.niche||'Unknown'}</div><div class="dc-meta" data-meta-id="${d.db_id||''}">${etsyStatusBadge(d.status)}</div>${d.qa_reason?`<div style="font-size:9px;color:var(--text3)">${d.qa_reason.slice(0,42)}</div>`:''}${_overrideBtns(d.status,d.db_id)}</div></div>`;
+  } else {
+    return `<div class="dc"><div class="dc-b" style="padding:0">${img}</div><div class="dc-b"><div class="dc-niche">${(d.video_title||d.niche||'Fiverr').slice(0,20)}${_fiverrGigBadge(d.gig_type)}</div><div class="dc-meta">${fiverrStatusBadge(d.status)}</div></div></div>`;
   }
-  el.innerHTML = designs.map(d => {
-    const img = d.has_file !== false
-      ? `<img src="${d.url}" alt="${d.niche}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=dc-placeholder><i class=ti ti-photo-off></i><span style=font-size:10px>Missing</span></div>'">`
-      : `<div class="dc-placeholder"><i class="ti ti-photo-off"></i><span style="font-size:9px">Deleted</span></div>`;
-    return `<div class="dc${d.status==='rejected'?' rejected':''}">
-      ${img}
-      <div class="dc-body">
-        <div class="dc-niche">${d.niche||'Unknown'}</div>
-        <div class="dc-meta">${etsyStatusBadge(d.status)}</div>
-        ${d.qa_reason?`<div style="font-size:9px;color:var(--text3);margin-top:2px">${d.qa_reason.slice(0,60)}</div>`:''}
-      </div>
-    </div>`;
-  }).join('');
 }
 
-function renderFiverrDesigns() {
-  let designs = state.fiverrDesigns;
-  if (fiverrFilter === 'approved') designs = designs.filter(d => d.status === 'approved');
-  else if (fiverrFilter === 'published') designs = designs.filter(d => d.status === 'published');
-  const el = $('fiverr-designs');
-  if (!designs.length) {
-    el.innerHTML = `<div class="empty-state"><i class="ti ti-photo-off"></i><p>No Fiverr designs yet.<br>Designs appear here when your first order is fulfilled.</p></div>`;
-    return;
-  }
-  el.innerHTML = designs.map(d => {
-    const img = d.has_file !== false
-      ? `<img src="${d.url}" alt="${d.video_title||d.niche}" loading="lazy">`
-      : `<div class="dc-placeholder"><i class="ti ti-photo-off"></i><span style="font-size:9px">Deleted</span></div>`;
-    return `<div class="dc">
-      ${img}
-      <div class="dc-body">
-        <div class="dc-niche">${(d.video_title||d.channel_niche||d.niche||'Fiverr').slice(0,30)}</div>
-        <div class="dc-meta">${fiverrStatusBadge(d.status)}</div>
-      </div>
-    </div>`;
-  }).join('');
+function renderEtsyDesigns(){
+  let d=state.etsyDesigns; if(etsyFilter!=='all') d=d.filter(x=>x.status===etsyFilter);
+  const el=$('etsy-designs'); if(!el) return;
+  el.innerHTML=d.length?d.map((x,i)=>_designCardHtml(x,i,'etsy')).join(''):`<div class="empty-state"><i class="ti ti-photo-off"></i><p>No designs</p></div>`;
+}
+function renderFiverrDesigns(){
+  let d=state.fiverrDesigns;
+  if(fiverrFilter==='approved') d=d.filter(x=>x.status==='approved');
+  else if(fiverrFilter==='published') d=d.filter(x=>x.status==='published');
+  if(fiverrGigFilter!=='all') d=d.filter(x=>(x.gig_type||'thumbnail')===fiverrGigFilter);
+  const el=$('fiverr-designs'); if(!el) return;
+  el.innerHTML=d.length?d.map((x,i)=>_designCardHtml(x,i,'fiverr')).join(''):`<div class="empty-state"><i class="ti ti-photo-off"></i><p>No designs</p></div>`;
+}
+function renderDetailDesigns(platform){
+  const el=$('detail-designs-grid'); if(!el) return;
+  let d= platform==='etsy' ? state.etsyDesigns : state.fiverrDesigns;
+  if(platform==='etsy'){ if(etsyFilter!=='all') d=d.filter(x=>x.status===etsyFilter); }
+  else { if(fiverrFilter==='approved') d=d.filter(x=>x.status==='approved'); else if(fiverrFilter==='published') d=d.filter(x=>x.status==='published'); if(fiverrGigFilter!=='all') d=d.filter(x=>(x.gig_type||'thumbnail')===fiverrGigFilter); }
+  el.innerHTML=d.length?d.map((x,i)=>_designCardHtml(x,i,platform)).join(''):`<div class="empty-state"><i class="ti ti-photo-off"></i><p>No designs found</p></div>`;
 }
 
-// ── Pipeline ───────────────────────────────────────────────────────────────
-const AGENTS_META = [
-  { key:'research',         label:'Research',          run:'research',      desc:'Daily 6AM · Etsy + Fiverr' },
-  { key:'design',           label:'Design',            run:'design',        desc:'Daily 8AM · gpt-image-1' },
-  { key:'qa',               label:'QA',                run:'qa',            desc:'After design · GPT-4o Vision' },
-  { key:'publisher',        label:'Publisher',         run:'publisher',     desc:'Daily 10AM · Etsy/Printify' },
-  { key:'performance',      label:'Performance',       run:'performance',   desc:'Tue+Thu 11AM · Listing stats' },
-  { key:'fiverr_orders',    label:'Fiverr Orders',     run:'fiverr_orders', desc:'Every 4h · IMAP polling' },
-  { key:'fiverr_reviews',   label:'Fiverr Reviews',    run:'fiverr_reviews',desc:'Daily 8PM · Review tracking' },
-  { key:'memory',           label:'Memory',            run:'memory',        desc:'Daily 10PM · Pattern learning' },
-  { key:'anomaly',          label:'Anomaly Detector',  run:'anomaly',       desc:'Daily 11PM · Threshold checks' },
-  { key:'scout',            label:'Scout',             run:'scout',         desc:'Sunday 7AM · Opportunity scan' },
-  { key:'fiverr_scout',     label:'Fiverr Scout',      run:'fiverr_scout',  desc:'Sunday 7:15AM · Gig research' },
-  { key:'prompt_evolution', label:'Prompt Evolution',  run:'prompt_evolution', desc:'Sunday 7:30AM · Prompt tuning' },
-  { key:'reporting',        label:'Reporting',         run:'reporting',     desc:'Sunday 9AM · Weekly P&L email' },
+async function overrideDesign(designId,newStatus,btn){
+  if(!designId) return;
+  btn.disabled=true; btn.classList.add('btn-override-loading');
+  const oldText=btn.textContent; btn.textContent='...';
+  const ep=newStatus==='approved'?'/designs/approve':'/designs/reject';
+  try{
+    const res=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({design_id:designId}),cache:'no-store'});
+    const data=await res.json();
+    if(!res.ok||data.error){ btn.textContent='Error'; btn.disabled=false; btn.classList.remove('btn-override-loading'); setTimeout(()=>{ btn.textContent=oldText; },2000); return; }
+    const d=state.etsyDesigns.find(x=>x.db_id===designId); if(d) d.status=newStatus;
+    document.querySelectorAll(`[data-design-id="${designId}"]`).forEach(card=>{
+      card.classList.toggle('rejected',newStatus==='rejected');
+      const meta=card.querySelector(`[data-meta-id="${designId}"]`); if(meta) meta.innerHTML=etsyStatusBadge(newStatus);
+      const actions=card.querySelector('.dc-actions'); if(actions) actions.outerHTML=_overrideBtns(newStatus,designId);
+    });
+  }catch{ btn.textContent='Error'; btn.disabled=false; btn.classList.remove('btn-override-loading'); setTimeout(()=>{ btn.textContent=oldText; },2000); }
+}
+
+// ── Pipeline metadata ──────────────────────────────────────────────────────
+const AGENTS_META=[
+  {key:'research',label:'Research',run:'research',desc:'Daily 6AM &middot; Etsy + Fiverr',platform:'etsy'},
+  {key:'design',label:'Design',run:'design',desc:'Daily 8AM &middot; gpt-image-1',platform:'etsy'},
+  {key:'qa',label:'QA',run:'qa',desc:'After design &middot; GPT-4o Vision',platform:'etsy'},
+  {key:'publisher',label:'Publisher',run:'publisher',desc:'Daily 10AM &middot; Etsy/Printify',platform:'etsy'},
+  {key:'performance',label:'Performance',run:'performance',desc:'Tue+Thu 11AM &middot; Listing stats',platform:'etsy'},
+  {key:'fiverr_orders',label:'Order Check',run:'fiverr_orders',desc:'Every 15min &middot; IMAP polling',platform:'fiverr'},
+  {key:'fiverr_reviews',label:'Fulfillment',run:'fiverr_reviews',desc:'Daily 8PM &middot; Email delivery',platform:'fiverr'},
+  {key:'memory',label:'Memory',run:'memory',desc:'Daily 10PM &middot; Pattern learning',platform:null},
+  {key:'anomaly',label:'Anomaly Detector',run:'anomaly',desc:'Daily 11PM &middot; Threshold checks',platform:null},
+  {key:'scout',label:'Scout',run:'scout',desc:'Sunday 7AM &middot; Opportunity scan',platform:null},
+  {key:'fiverr_scout',label:'Fiverr Scout',run:'fiverr_scout',desc:'Sunday 7:15AM &middot; Gig research',platform:'fiverr'},
+  {key:'prompt_evolution',label:'Prompt Evolution',run:'prompt_evolution',desc:'Sunday 7:30AM &middot; Prompt tuning',platform:null},
+  {key:'reporting',label:'Reporting',run:'reporting',desc:'Sunday 9AM &middot; Weekly P&amp;L email',platform:null},
 ];
+const COND_KEYS={research:'research',design:'design',publisher:'publisher',fiverr_orders:'fiverr_orders',fiverr_reviews:'fiverr_orders',performance:'performance',memory:'memory',anomaly:'anomaly',scout:'scout',fiverr_scout:'scout',prompt_evolution:'prompt_evolution',reporting:'reporting',qa:null};
 
-const COND_KEYS = {
-  research:'research', design:'design', publisher:'publisher',
-  fiverr_orders:'fiverr_orders', fiverr_reviews:'fiverr_orders',
-  performance:'performance', memory:'memory', anomaly:'anomaly',
-  scout:'scout', fiverr_scout:'scout', prompt_evolution:'prompt_evolution',
-  reporting:'reporting', qa:null,
-};
-
-function loadAgentGrid() {
-  const grid = $('agent-grid');
-  if (!grid) return;
-  grid.innerHTML = AGENTS_META.map(a => `
-    <div class="agent-card" id="ac-${a.key}">
-      <div class="ac-header">
-        <div class="ac-dot gray" id="acd-${a.key}"></div>
-        <div class="ac-name">${a.label}</div>
-        <button class="btn btn-ghost btn-sm" onclick="runAgent('${a.run}')"><i class="ti ti-play"></i>Run</button>
-      </div>
-      <div class="ac-cond" id="acc-${a.key}">${a.desc}</div>
-    </div>`).join('');
+function loadAgentGrid(){
+  const grid=$('agent-grid'); if(!grid) return;
+  grid.innerHTML=AGENTS_META.map(a=>`<div class="agent-card" id="ac-${a.key}"><div class="ac-header"><div class="ac-dot gray" id="acd-${a.key}"></div><div class="ac-name">${a.label}</div><button class="btn btn-ghost btn-sm" onclick="runAgent('${a.run}')">Run</button></div><div class="ac-cond" id="acc-${a.key}">${a.desc}</div></div>`).join('');
   loadConditions();
 }
-
-async function loadConditions() {
-  const cond = await apiFetch('/scheduler/conditions');
-  if (!cond) return;
-  state.conditions = cond;
-
-  // Full conditions table in Pipeline section
-  const names = ['research','design','publisher','fiverr_orders','performance','memory','anomaly','scout','reporting','prompt_evolution'];
-  const tbl = $('cond-full-table');
-  if (tbl) {
-    tbl.innerHTML = `<div class="cond-table">${names.map(n => {
-      const c = cond[n] || {};
-      const run = c.should_run !== false;
-      return `<div class="cond-row">
-        <div class="cond-row-name"><span class="cond-dot ${run?'run':'skip'}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${run?'var(--green)':'var(--yellow)'};margin-right:6px"></span>${n.replace(/_/g,' ')}</div>
-        <div class="cond-row-reason" style="color:${run?'var(--text2)':'var(--yellow)'}">${c.reason||''}</div>
-      </div>`;
-    }).join('')}</div>`;
-  }
-
-  // Agent card condition hints
-  AGENTS_META.forEach(a => {
-    const ck  = COND_KEYS[a.key];
-    const el  = $('acc-' + a.key);
-    const dot = $('acd-' + a.key);
-    if (!el || !ck) return;
-    const c = cond[ck];
-    if (!c) return;
-    const run = c.should_run !== false;
-    el.textContent = c.reason || a.desc;
-    el.className   = 'ac-cond' + (!run ? ' skip-cond' : '');
-    if (dot) dot.className = 'ac-dot ' + (run ? 'green' : 'yellow');
-  });
+async function loadConditions(){
+  const cond=await apiFetch('/scheduler/conditions'); if(!cond) return;
+  state.conditions=cond;
+  const names=['research','design','publisher','fiverr_orders','performance','memory','anomaly','scout','reporting','prompt_evolution'];
+  const tbl=$('cond-full-table');
+  if(tbl) tbl.innerHTML=`<div>${names.map(n=>{ const c=cond[n]||{},run=c.should_run!==false; return`<div class="cond-row"><div class="cond-row-name"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${run?'var(--green)':'var(--yellow)'};margin-right:5px"></span>${n.replace(/_/g,' ')}</div><div class="cond-row-reason" style="color:${run?'var(--text2)':'var(--yellow)'}">${c.reason||''}</div></div>`; }).join('')}</div>`;
+  const condOverlay=$('mod-foot-cond');
+  if(condOverlay&&_currentModKey){ const ck=COND_KEYS[_currentModKey],c2=ck&&cond[ck]; if(c2){ const run=c2.should_run!==false; condOverlay.style.color=run?'var(--green)':'var(--yellow)'; condOverlay.textContent=`${run?'&#10003;':'&#9888;'} ${c2.reason||'No condition set'}`; } }
+  AGENTS_META.forEach(a=>{ const ck=COND_KEYS[a.key],el=$('acc-'+a.key),dot=$('acd-'+a.key); if(!el||!ck) return; const c=cond[ck]; if(!c) return; const run=c.should_run!==false; el.textContent=c.reason||a.desc; el.className='ac-cond'+((!run)?' skip-cond':''); if(dot) dot.className='ac-dot '+(run?'green':'yellow'); });
 }
-
-function loadAgentGridStatus() {
-  for (const [name, info] of Object.entries(state.agentStatus)) {
-    if (name === '__spend__') continue;
-    const dot = $('acd-' + name);
-    if (!dot) continue;
-    const cls = { running:'yellow', complete:'green', error:'red', idle:'gray' };
-    dot.className = 'ac-dot ' + (cls[info.status] || 'gray');
-    const card = $('ac-' + name);
-    if (card) {
-      card.classList.toggle('running',     info.status === 'running');
-      card.classList.toggle('error-state', info.status === 'error');
-    }
+function loadAgentGridStatus(){
+  for(const [name,info] of Object.entries(state.agentStatus)){
+    if(name==='__spend__') continue;
+    const dot=$('acd-'+name); if(!dot) continue;
+    const cls={running:'yellow',complete:'green',error:'red',idle:'gray'};
+    dot.className='ac-dot '+(cls[info.status]||'gray');
+    const card=$('ac-'+name);
+    if(card){ card.classList.toggle('running',info.status==='running'); card.classList.toggle('error-state',info.status==='error'); }
   }
 }
 
 // ── Intelligence ───────────────────────────────────────────────────────────
-async function loadProposals() {
-  const rows = await apiFetch(`/proposals?status=${state.proposalFilter}`);
-  const el = $('proposals-list');
-  if (!rows || !rows.length) {
-    el.innerHTML = '<div class="empty-state"><i class="ti ti-bulb"></i><p>No proposals in this category</p></div>';
-    return;
-  }
-  el.innerHTML = rows.map(p => {
-    const isPending = p.status === 'pending';
-    const badge = p.platform === 'fiverr_expansion'
-      ? '<span class="badge badge-blue">Fiverr Expansion</span>'
-      : '<span class="badge badge-acc">Main Scout</span>';
-    return `<div class="proposal-card">
-      <div class="proposal-name">${p.opportunity_name} ${badge}</div>
-      <div class="proposal-how">${p.how_it_works||''}</div>
-      <div class="proposal-meta">
-        <span class="badge badge-gray"><i class="ti ti-clock" style="font-size:11px"></i> ${p.setup_time_hours||'?'}h setup</span>
-        <span class="badge badge-gray"><i class="ti ti-cash" style="font-size:11px"></i> $${p.monthly_potential_usd||'?'}/mo</span>
-        <span class="badge badge-gray">${p.risk_description||''}</span>
-      </div>
-      ${isPending ? `<div class="proposal-actions">
-        <button class="btn btn-acc btn-sm" onclick="approveProposal('${p.id}')"><i class="ti ti-check"></i>Approve</button>
-        <button class="btn btn-danger btn-sm" onclick="ignoreProposal('${p.id}')"><i class="ti ti-x"></i>Ignore</button>
-      </div>` : `<div style="font-size:10px;color:var(--text3)">${p.status} ${p.approved_at ? '· ' + fmtDate(p.approved_at) : ''}</div>`}
-    </div>`;
-  }).join('');
+async function loadProposals(){
+  const el=$('proposals-list'); if(!el) return;
+  const rows=await apiFetch(`/proposals?status=${state.proposalFilter}`);
+  if(!rows||!rows.length){ el.innerHTML='<div class="empty-state"><i class="ti ti-bulb"></i><p>No proposals</p></div>'; return; }
+  el.innerHTML=rows.map(p=>{ const isPending=p.status==='pending'; const badge=p.platform==='fiverr_expansion'?'<span class="badge badge-blue">Fiverr</span>':'<span class="badge badge-acc">Scout</span>'; return`<div class="proposal-card"><div class="proposal-name">${p.opportunity_name} ${badge}</div><div class="proposal-how">${p.how_it_works||''}</div><div class="proposal-meta"><span class="badge badge-gray">${p.setup_time_hours||'?'}h setup</span><span class="badge badge-gray">$${p.monthly_potential_usd||'?'}/mo</span><span class="badge badge-gray">${p.risk_description||''}</span></div>${isPending?`<div class="proposal-actions"><button class="btn btn-sm btn-acc" onclick="approveProposal('${p.id}')">Approve</button><button class="btn btn-sm btn-danger" onclick="ignoreProposal('${p.id}')">Ignore</button></div>`:`<div style="font-size:11px;color:var(--text3)">${p.status}${p.approved_at?' &middot; ':''}</div>`}</div>`; }).join('');
+}
+function filterProposals(f,btn){ state.proposalFilter=f; if(btn){ btn.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); } loadProposals(); }
+async function approveProposal(id){ await fetch('/proposals/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposal_id:id})}); loadProposals(); }
+async function ignoreProposal(id){ await fetch('/proposals/ignore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({proposal_id:id})}); loadProposals(); }
+
+async function loadMemory(){
+  const catEl=$('mem-cat-filter'),cat=catEl?.value||'';
+  const rows=await apiFetch('/memory'+(cat?'?category='+cat:''));
+  const el=$('memory-list'); if(!el) return;
+  if(!rows||!rows.length){ el.innerHTML='<div class="empty-state"><i class="ti ti-database"></i><p>No memory records</p></div>'; return; }
+  const catColors={design_quality:'badge-green',niche_performance:'badge-acc',platform_health:'badge-blue',agent_reliability:'badge-gray',prompt_performance:'badge-yellow',scout_findings:'badge-acc'};
+  el.innerHTML=rows.slice(0,30).map(m=>{ const val=typeof m.value==='object'?JSON.stringify(m.value):String(m.value); return`<div class="memory-card"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><div class="mem-key">${m.key}</div><span class="badge ${catColors[m.category]||'badge-gray'}">${m.category}</span></div><div class="mem-val">${val.slice(0,200)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${timeAgo(m.last_updated)} &middot; confidence: ${((m.confidence||0)*100).toFixed(0)}% &middot; n=${m.sample_size||0}</div></div>`; }).join('');
 }
 
-function filterProposals(f, btn) {
-  state.proposalFilter = f;
-  if (btn) {
-    btn.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-  }
-  loadProposals();
-}
-
-async function approveProposal(id) {
-  await fetch('/proposals/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({proposal_id:id}) });
-  loadProposals();
-}
-async function ignoreProposal(id) {
-  await fetch('/proposals/ignore', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({proposal_id:id}) });
-  loadProposals();
-}
-
-async function loadMemory() {
-  const cat = $('mem-cat-filter')?.value || '';
-  const rows = await apiFetch('/memory' + (cat ? '?category=' + cat : ''));
-  const el = $('memory-list');
-  if (!rows || !rows.length) {
-    el.innerHTML = '<div class="empty-state"><i class="ti ti-database"></i><p>No memory records</p></div>';
-    return;
-  }
-  const catColors = {
-    design_quality:'badge-green', niche_performance:'badge-acc', platform_health:'badge-blue',
-    agent_reliability:'badge-gray', prompt_performance:'badge-yellow', scout_findings:'badge-purple',
-  };
-  el.innerHTML = rows.slice(0,30).map(m => {
-    const val = typeof m.value === 'object' ? JSON.stringify(m.value) : String(m.value);
-    return `<div class="memory-card">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <div class="mem-key">${m.key}</div>
-        <span class="badge ${catColors[m.category]||'badge-gray'}" style="font-size:9px">${m.category}</span>
-      </div>
-      <div class="mem-val">${val.slice(0,200)}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:4px">${timeAgo(m.last_updated)} · confidence: ${((m.confidence||0)*100).toFixed(0)}% · n=${m.sample_size||0}</div>
-    </div>`;
-  }).join('');
-}
-
-async function loadFinance() {
-  const data = await apiFetch('/finance');
-  if (!data) return;
-  const w = data.weekly || {}, at = data.all_time || {};
-  $('fin-wrev').textContent    = fmtMoney(w.gross_revenue);
-  $('fin-wnet').textContent    = fmtMoney(w.net_profit);
-  $('fin-atnet').textContent   = fmtMoney(at.net_profit);
-  $('fin-mspend').textContent  = fmtMoney(data.month_spend);
-  $('fin-cap').textContent     = fmtMoney(data.spend_cap);
-  const pct = Math.min(100, (data.month_spend||0)/(data.spend_cap||100)*100);
-  $('fin-spend-bar').style.width = pct + '%';
-  $('fin-spend-bar').className   = 'progress-fill ' + (pct>80?'red':pct>60?'yellow':'acc');
-  const rem = at.remaining_to_recover;
-  $('fin-recover').textContent     = rem <= 0 ? '✓ Recovered' : fmtMoney(rem) + ' left';
-  $('fin-recover-sub').textContent = at.setup_costs_recovered ? 'Setup costs recovered' : 'Setup costs pending';
-
-  // By agent
-  const ba = data.by_agent || {};
-  const baEl = $('fin-by-agent');
-  if (baEl) {
-    const sorted = Object.entries(ba).sort((a,b) => b[1]-a[1]);
-    baEl.innerHTML = sorted.length ? sorted.map(([a,c]) =>
-      `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--s3);font-size:11px">
-        <span style="color:var(--text2)">${a}</span><span style="color:var(--acc)">${fmtMoney(c)}</span>
-      </div>`).join('')
-      : '<div style="color:var(--text3);font-size:11px">No costs recorded</div>';
-  }
-
-  // Expenses
-  const exEl = $('fin-expenses');
-  if (exEl) {
-    const exps = data.expenses || [];
-    exEl.innerHTML = exps.length ? exps.map(e =>
-      `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--s3);font-size:11px">
-        <div><span style="color:var(--text2)">${e.description}</span><br><span style="font-size:10px;color:var(--text3)">${e.platform} · ${e.expense_date}</span></div>
-        <span style="color:var(--red)">${fmtMoney(e.amount_usd)}</span>
-      </div>`).join('')
-      : '<div style="color:var(--text3);font-size:11px">No expenses</div>';
-  }
+async function loadFinance(){
+  const data=await apiFetch('/finance'); if(!data) return;
+  const w=data.weekly||{},at=data.all_time||{};
+  if($('fin-wrev')) $('fin-wrev').textContent=fmtMoney(w.gross_revenue);
+  if($('fin-wnet')) $('fin-wnet').textContent=fmtMoney(w.net_profit);
+  if($('fin-atnet')) $('fin-atnet').textContent=fmtMoney(at.net_profit);
+  if($('fin-mspend')) $('fin-mspend').textContent=fmtMoney(data.month_spend);
+  if($('fin-cap')) $('fin-cap').textContent=fmtMoney(data.spend_cap);
+  const pct=Math.min(100,(data.month_spend||0)/(data.spend_cap||100)*100);
+  if($('fin-spend-bar')){ $('fin-spend-bar').style.width=pct+'%'; $('fin-spend-bar').className='progress-fill '+(pct>80?'red':pct>60?'yellow':'acc'); }
+  const rem=at.remaining_to_recover;
+  if($('fin-recover')) $('fin-recover').textContent=rem<=0?'Recovered':fmtMoney(rem)+' left';
+  if($('fin-recover-sub')) $('fin-recover-sub').textContent=at.setup_costs_recovered?'Costs recovered':'Setup costs pending';
+  const ba=data.by_agent||{},baEl=$('fin-by-agent');
+  if(baEl){ const sorted=Object.entries(ba).sort((a,b)=>b[1]-a[1]); baEl.innerHTML=sorted.length?sorted.map(([a,c])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #181818;font-size:11px"><span style="color:var(--text2)">${a}</span><span style="color:var(--acc)">${fmtMoney(c)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px">No costs</div>'; }
+  const exEl=$('fin-expenses');
+  if(exEl){ const exps=data.expenses||[]; exEl.innerHTML=exps.length?exps.map(e=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #181818;font-size:11px"><div><span style="color:var(--text2)">${e.description}</span><br><span style="color:var(--text3)">${e.platform} &middot; ${e.expense_date}</span></div><span style="color:var(--red)">${fmtMoney(e.amount_usd)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px">No expenses</div>'; }
 }
 
 // ── Orchestrator ───────────────────────────────────────────────────────────
-async function loadOrchState() {
-  const data = await apiFetch('/stats');
-  if (!data) return;
-  const sp = data.month_spend || 0;
-  $('orch-state-bar').innerHTML = `
-    <b>System:</b> ${data.listings_published||0} active listings &nbsp;·&nbsp;
-    <b>Revenue this week:</b> ${fmtMoney(data.week_revenue)} &nbsp;·&nbsp;
-    <b>Net this week:</b> ${fmtMoney(data.week_net)} &nbsp;·&nbsp;
-    <b>API spend:</b> $${sp.toFixed(2)} / $${(data.spend_cap||100).toFixed(0)} cap`;
+async function loadOrchState(){
+  const data=await apiFetch('/stats'); if(!data) return;
+  const el=$('orch-state-bar'); if(!el) return;
+  const sp=data.month_spend||0;
+  el.innerHTML=`<b>System:</b> ${data.listings_published||0} active &nbsp;&middot;&nbsp; <b>Revenue:</b> ${fmtMoney(data.week_revenue)} &nbsp;&middot;&nbsp; <b>Net:</b> ${fmtMoney(data.week_net)} &nbsp;&middot;&nbsp; <b>API spend:</b> $${sp.toFixed(2)} / $${(data.spend_cap||100).toFixed(0)} cap`;
+}
+function chatKey(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } }
+async function sendChat(){
+  const input=$('chat-input'),msg=input.value.trim(); if(!msg) return;
+  input.value=''; $('chat-send').disabled=true;
+  const hist=$('chat-history');
+  const addMsg=(role,text)=>{ const d=document.createElement('div'); d.className='chat-msg '+role; d.textContent=text; hist.appendChild(d); const ts=document.createElement('div'); ts.className='chat-msg ts'; ts.textContent=new Date().toLocaleTimeString(); hist.appendChild(ts); hist.scrollTop=hist.scrollHeight; };
+  addMsg('user',msg); state.chatHistory.push({role:'user',content:msg});
+  const thinking=document.createElement('div'); thinking.className='chat-msg assistant'; thinking.textContent='&#8230;'; hist.appendChild(thinking); hist.scrollTop=hist.scrollHeight;
+  try{
+    const res=await fetch('/orchestrator',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,history:state.chatHistory})});
+    const data=await res.json(); thinking.remove();
+    const reply=data.reply||data.error||'No response'; addMsg('assistant',reply);
+    state.chatHistory=data.history||[...state.chatHistory,{role:'assistant',content:reply}];
+  }catch(e){ thinking.textContent='Error: '+e.message; }
+  finally{ $('chat-send').disabled=false; input.focus(); }
 }
 
-function chatKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+// ── Full pipeline stream ───────────────────────────────────────────────────
+function _readPipelineStream(response,btn){
+  const log=$('live-log'); const stages=['research','design','qa']; let currentStage=null;
+  const reader=response.body.getReader(); const dec=new TextDecoder(); let buf='';
+  function _writeLine(msg){ if(!log)return; const d=document.createElement('div'); const isSep=msg.startsWith('---'); const isErr=!isSep&&msg.toLowerCase().includes('error'); d.className='log-line'+(isSep?' ok':isErr?' err':''); d.textContent=msg; log.appendChild(d); log.scrollTop=log.scrollHeight; }
+  function pump(){
+    reader.read().then(({done,value})=>{
+      if(done){ stages.forEach(n=>{ if(state.taskCards[n]) _closeTaskCard(n,'done'); }); _closeTaskCard('pipeline','done'); if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-player-play"></i> Run Full Pipeline'; } return; }
+      buf+=dec.decode(value,{stream:true}); const lines=buf.split('\n'); buf=lines.pop();
+      for(const line of lines){
+        if(line.startsWith(':'))continue; if(!line.startsWith('data:'))continue;
+        const raw=line.slice(5).trim(); if(!raw)continue;
+        let msg; try{msg=JSON.parse(raw);}catch{msg=raw;}
+        if(typeof msg!=='string')continue;
+        if(msg.startsWith('__DONE__')){ const ok=msg.endsWith(':0'); stages.forEach(n=>{ if(state.taskCards[n]) _closeTaskCard(n,ok?'done':'error'); }); _closeTaskCard('pipeline',ok?'done':'error'); if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-player-play"></i> Run Full Pipeline'; } return; }
+        const stageStart=msg.match(/---\s*\[(\w+)\]\s*stage starting/i);
+        if(stageStart){ const sn=stageStart[1].toLowerCase(); if(stages.includes(sn)){ currentStage=sn; if(!state.taskCards[sn]) _openTaskCard(sn); const tc=state.taskCards['pipeline']; if(tc) tc.el.querySelector('.tc-step').textContent=sn+' stage...'; } }
+        _writeLine(msg); if(currentStage) _apply_progress_js(currentStage,msg);
+      }
+      pump();
+    }).catch(err=>{ console.error('[pipeline]',err); _closeTaskCard('pipeline','error'); if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-player-play"></i> Run Full Pipeline'; } });
+  }
+  pump();
 }
 
-async function sendChat() {
-  const input = $('chat-input');
-  const msg = input.value.trim();
-  if (!msg) return;
-  input.value = '';
-  $('chat-send').disabled = true;
+function runFullPipeline(){
+  const btn=$('btn-pipeline');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Running...'; }
+  _openTaskCard('pipeline'); _openModOverlay('FULL PIPELINE',null);
+  const log=$('live-log'); if(log) log.innerHTML='';
+  fetch('/run/full_pipeline',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({platform:'etsy'}),cache:'no-store'})
+    .then(r=>{ if(!r.ok||!r.body){ _closeTaskCard('pipeline','error'); if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-player-play"></i> Run Full Pipeline'; } return; } _readPipelineStream(r,btn); })
+    .catch(()=>{ _closeTaskCard('pipeline','error'); if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-player-play"></i> Run Full Pipeline'; } });
+}
 
-  const hist = $('chat-history');
-  const addMsg = (role, text) => {
-    const d = document.createElement('div');
-    d.className = 'chat-msg ' + role;
-    d.textContent = text;
-    hist.appendChild(d);
-    const ts = document.createElement('div');
-    ts.className = 'chat-msg ts';
-    ts.textContent = new Date().toLocaleTimeString();
-    hist.appendChild(ts);
-    hist.scrollTop = hist.scrollHeight;
-  };
+async function tryReconnect(){
+  const rs=await apiFetch('/run/state'); if(!rs) return;
+  const wasRunning=rs.pipeline_running||(rs.completed_stages&&rs.completed_stages.length>0);
+  if(!wasRunning) return;
+  _openModOverlay('FULL PIPELINE',null);
+  for(const stage of(rs.completed_stages||[])){ _openTaskCard(stage); const res=(rs.stage_results||{})[stage]; _closeTaskCard(stage,res==='complete'?'done':'error'); }
+  if(rs.current_stage&&!(rs.completed_stages||[]).includes(rs.current_stage)) _openTaskCard(rs.current_stage);
+  _openTaskCard('pipeline');
+  const log=$('live-log'); if(log) log.innerHTML='';
+  if(!rs.pipeline_running){ (rs.completed_stages||[]).forEach(s=>{ const res=(rs.stage_results||{})[s]; _closeTaskCard(s,res==='complete'?'done':'error'); }); _closeTaskCard('pipeline','done'); return; }
+  const btn=$('btn-pipeline');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Running...'; }
+  fetch('/run/full_pipeline/stream',{cache:'no-store'}).then(r=>{ if(!r.ok||!r.body){ _closeTaskCard('pipeline','error'); return; } _readPipelineStream(r,btn); }).catch(()=>{ _closeTaskCard('pipeline','error'); });
+}
 
-  addMsg('user', msg);
-  state.chatHistory.push({ role:'user', content: msg });
+function _apply_progress_js(name,line){
+  const tc=state.taskCards[name]; if(!tc) return;
+  const low=line.toLowerCase();
+  const mA=low.match(/attempt\s+(\d+)\/(\d+)/),mP=low.match(/approved[:\s]+(\d+)\/(\d+)/);
+  if(mA){ tc.el.querySelector('.tc-bar').style.width=Math.min(95,Math.round(parseInt(mA[1])/parseInt(mA[2])*100))+'%'; tc.el.querySelector('.tc-step').textContent=`Attempt ${mA[1]}/${mA[2]}`; }
+  else if(mP){ tc.el.querySelector('.tc-bar').style.width=Math.min(95,Math.round(parseInt(mP[1])/parseInt(mP[2])*100))+'%'; tc.el.querySelector('.tc-step').textContent=`Approved ${mP[1]}/${mP[2]}`; }
+  else{ const m=line.match(/^\[[^\]]+\]\s+(.*)/); if(m&&m[1].trim().length>2) tc.el.querySelector('.tc-step').textContent=m[1].trim().slice(0,80); }
+}
 
-  const thinking = document.createElement('div');
-  thinking.className = 'chat-msg assistant';
-  thinking.textContent = '…';
-  hist.appendChild(thinking);
-  hist.scrollTop = hist.scrollHeight;
+// ── Scheduler ─────────────────────────────────────────────────────────────
+let _schedulerRunning=false;
+async function updateSchedulerStatus(){
+  const data=await apiFetch('/scheduler/status'); if(!data) return;
+  _schedulerRunning=data.running===true;
+  ['sched-dot','sched-dot2'].forEach(id=>{ const d=$(id); if(d) d.style.color=_schedulerRunning?'var(--green)':'#333'; });
+  ['sched-label','sched-label2'].forEach(id=>{ const l=$(id); if(l) l.textContent=_schedulerRunning?'running':'idle'; });
+  ['btn-scheduler','btn-scheduler2'].forEach(id=>{ const b=$(id); if(b){ b.innerHTML=_schedulerRunning?'<i class="ti ti-player-stop"></i> Stop':'<i class="ti ti-clock"></i> Start'; b.className=_schedulerRunning?'btn btn-sm btn-danger':'btn btn-sm'; } });
+}
+async function toggleScheduler(){
+  ['btn-scheduler','btn-scheduler2'].forEach(id=>{ const b=$(id); if(b) b.disabled=true; });
+  await fetch(_schedulerRunning?'/scheduler/stop':'/scheduler/start',{method:'POST',cache:'no-store'});
+  await updateSchedulerStatus();
+  ['btn-scheduler','btn-scheduler2'].forEach(id=>{ const b=$(id); if(b) b.disabled=false; });
+}
 
-  try {
-    const res = await fetch('/orchestrator', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ message: msg, history: state.chatHistory }),
-    });
-    const data = await res.json();
-    thinking.remove();
-    const reply = data.reply || data.error || 'No response';
-    addMsg('assistant', reply);
-    state.chatHistory = data.history || [...state.chatHistory, { role:'assistant', content:reply }];
-  } catch (e) {
-    thinking.textContent = 'Error: ' + e.message;
-  } finally {
-    $('chat-send').disabled = false;
-    input.focus();
+// ── Module overlay ─────────────────────────────────────────────────────────
+let _currentModKey=null, _currentModRunKey=null;
+function _modFootRun(){ if(_currentModRunKey) runAgent(_currentModRunKey); }
+
+function openModuleOverlay(key,skipClear){
+  _currentModKey=key; $('mod-overlay').classList.add('open');
+  const agent=AGENTS_META.find(a=>a.key===key)||{label:key?key.replace(/_/g,' '):'PIPELINE',run:key,desc:'',platform:null};
+  _currentModRunKey=agent.run||null;
+  const titleEl=$('mod-title'); if(titleEl) titleEl.textContent=(agent.label||key||'PIPELINE').toUpperCase();
+  const badgeEl=$('mod-badge');
+  if(badgeEl){ if(agent.platform==='etsy'){ badgeEl.style.display=''; badgeEl.textContent='ETSY'; badgeEl.style.color='var(--etsy-color)'; badgeEl.style.borderColor='rgba(245,100,0,.4)'; } else if(agent.platform==='fiverr'){ badgeEl.style.display=''; badgeEl.textContent='FIVERR'; badgeEl.style.color='var(--fv-color)'; badgeEl.style.borderColor='rgba(29,191,115,.4)'; } else badgeEl.style.display='none'; }
+  const dotEl=$('mod-dot');
+  if(dotEl&&state.agentStatus[key]){ const cm={running:'dot-yellow',complete:'dot-green',error:'dot-red',idle:'dot-gray'}; dotEl.className='mod-status-dot '+(cm[state.agentStatus[key].status]||'dot-gray'); }
+  else if(dotEl){ dotEl.className='mod-status-dot'; dotEl.style.background='#2a2a2a'; }
+  const runBtn=$('mod-run-btn'),footRun=$('mod-foot-run');
+  if(key){ if(runBtn){ runBtn.style.display=''; runBtn.onclick=()=>runAgent(agent.run||key); } if(footRun) footRun.style.display=''; }
+  else{ if(runBtn) runBtn.style.display='none'; if(footRun) footRun.style.display='none'; }
+  const footTime=$('mod-foot-time'); if(footTime){ const info=state.agentStatus[key]; footTime.textContent=info?.started_at?'Last run: '+timeAgo(info.started_at):''; }
+  const footCond=$('mod-foot-cond'); if(footCond){ const ck=COND_KEYS[key],c=ck&&state.conditions[ck]; if(c){ const run=c.should_run!==false; footCond.style.color=run?'var(--green)':'var(--yellow)'; footCond.textContent=(run?'&#10003; ':'&#9888; ')+(c.reason||''); }else{ footCond.textContent=agent.desc||''; footCond.style.color='var(--text3)'; } }
+  if(!skipClear){ const log=$('live-log'); if(log) log.innerHTML=`<span class="log-line" style="color:#333">// ${agent.label||'PIPELINE'} &middot; run to see output</span>`; }
+  _renderModPanel(key);
+  $$('.anode').forEach(n=>n.classList.remove('active-node'));
+  const nodeEl=$('node-'+key); if(nodeEl) nodeEl.classList.add('active-node');
+}
+
+function _renderModPanel(key){
+  const content=$('node-detail-content'); if(!content) return;
+  if(key==='scout'||key==='fiverr_scout'){
+    content.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:10px;letter-spacing:1px">SCOUT PROPOSALS</div><div class="tabs" style="margin-bottom:8px"><button class="tab active" onclick="filterProposals('pending',this)">Pending</button><button class="tab" onclick="filterProposals('approved',this)">Approved</button><button class="tab" onclick="filterProposals('ignored',this)">Ignored</button></div><div id="proposals-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>`;
+    state.proposalFilter='pending'; loadProposals();
+  } else if(key==='memory'){
+    content.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:10px;letter-spacing:1px">MEMORY RECORDS</div><select id="mem-cat-filter" onchange="loadMemory()" style="background:#111;border:1px solid #333;color:var(--text2);padding:5px 8px;font-size:11px;margin-bottom:8px;width:100%"><option value="">All categories</option><option value="design_quality">Design Quality</option><option value="niche_performance">Niche Performance</option><option value="platform_health">Platform Health</option><option value="agent_reliability">Agent Reliability</option><option value="prompt_performance">Prompt Performance</option><option value="scout_findings">Scout Findings</option></select><div id="memory-list"><div class="loading"><span class="spinner"></span>Loading...</div></div>`;
+    loadMemory();
+  } else if(key==='performance'){
+    content.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:10px;letter-spacing:1px">FINANCIAL PERFORMANCE</div><div class="fin-grid" style="margin-bottom:8px"><div class="fin-tile"><div class="fin-label">Week Revenue</div><div class="fin-val" id="fin-wrev">&#8212;</div></div><div class="fin-tile"><div class="fin-label">Week Net</div><div class="fin-val" id="fin-wnet">&#8212;</div></div><div class="fin-tile"><div class="fin-label">All-time Net</div><div class="fin-val" id="fin-atnet">&#8212;</div></div><div class="fin-tile"><div class="fin-label">Month Spend</div><div class="fin-val" id="fin-mspend">&#8212;</div><div class="progress-wrap"><div class="progress-fill acc" id="fin-spend-bar" style="width:0%"></div></div></div><div class="fin-tile"><div class="fin-label">Spend Cap</div><div class="fin-val" id="fin-cap">&#8212;</div></div><div class="fin-tile"><div class="fin-label">Recovery</div><div class="fin-val" id="fin-recover" style="font-size:10px">&#8212;</div><div style="font-size:7px;color:var(--text3)" id="fin-recover-sub"></div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:10px;color:var(--text3);margin-bottom:4px;letter-spacing:.5px">COST BY AGENT</div><div id="fin-by-agent"></div></div><div><div style="font-size:10px;color:var(--text3);margin-bottom:4px;letter-spacing:.5px">EXPENSES</div><div id="fin-expenses"></div></div></div>`;
+    loadFinance();
+  } else if(key==='design'||key==='qa'){
+    content.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:10px;letter-spacing:1px">RECENT DESIGNS</div><div class="dc-grid" id="mod-design-mini"><div class="loading"><span class="spinner"></span>Loading...</div></div>`;
+    apiFetch('/designs?platform=etsy&limit=20').then(data=>{ const el=$('mod-design-mini'); if(!el)return; if(!data||!data.length){ el.innerHTML='<div class="empty-state"><i class="ti ti-photo-off"></i><p>No designs</p></div>'; return; } el.innerHTML=data.slice(0,20).map((d,i)=>{ const img=d.has_file!==false?`<img src="${d.url}" alt="" loading="lazy" style="cursor:zoom-in" onclick="openLightbox('etsy',${i})" onerror="this.style.display='none'">`:`<div class="dc-ph"><i class="ti ti-photo-off"></i></div>`; return`<div class="dc">${img}<div class="dc-b"><div class="dc-meta">${etsyStatusBadge(d.status)}</div></div></div>`; }).join(''); });
+  } else {
+    const agent=AGENTS_META.find(a=>a.key===key)||{label:key||'PIPELINE',desc:''};
+    const ck=COND_KEYS[key],c=ck&&state.conditions[ck],run=c?c.should_run!==false:true;
+    content.innerHTML=`${c?`<div style="font-size:12px;padding:8px 10px;margin-bottom:12px;border:1px solid ${run?'#1e3a1e':'#3a2a00'};background:${run?'rgba(76,175,80,.05)':'rgba(255,193,7,.05)'};color:${run?'var(--green)':'var(--yellow)'}"><i class="ti ti-${run?'circle-check':'alert-circle'}" style="margin-right:6px"></i>${c.reason||'No condition set'}</div>`:''}<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;margin-bottom:4px">SCHEDULE</div><div style="font-size:12px;color:var(--text2);margin-bottom:16px">${agent.desc||''}</div><div style="font-size:11px;color:var(--text3);line-height:1.7">Run this module to stream live output into the terminal on the left.</div>`;
   }
 }
 
-// ── Auto-refresh ───────────────────────────────────────────────────────────
-async function tick() {
-  await Promise.all([
-    loadActivity(),
-    pollAgentStatus(),
-    loadNotifications(),
-  ]);
-  if (state.section === 'overview') loadOverview();
+function closeModOverlay(){ _currentModKey=null; _currentModRunKey=null; $('mod-overlay').classList.remove('open'); $$('.anode').forEach(n=>n.classList.remove('active-node')); }
+function openNodeDetail(title,agentKey){ if(agentKey) openModuleOverlay(agentKey); else _openModOverlay(title,agentKey); }
+function _openModOverlay(title,agentKey){
+  _currentModKey=agentKey; _currentModRunKey=agentKey; $('mod-overlay').classList.add('open');
+  const titleEl=$('mod-title'); if(titleEl) titleEl.textContent=title||'MODULE';
+  const badgeEl=$('mod-badge'); if(badgeEl) badgeEl.style.display='none';
+  const runBtn=$('mod-run-btn'); if(runBtn){ runBtn.style.display=agentKey?'':'none'; if(agentKey) runBtn.onclick=()=>runAgent(agentKey); }
+  const footRun=$('mod-foot-run'); if(footRun) footRun.style.display=agentKey?'':'none';
+}
+function closeNodeDetail(){ closeModOverlay(); }
+function switchSCTab(){}
+function toggleStream(){}
+
+// ── Business cards config ──────────────────────────────────────────────────
+const BIZ_CONFIG={
+  etsy:{
+    id:'etsy',name:'Etsy Mugs',icon:'&#127978;',
+    platform:'ETSY',platformColor:'var(--etsy-color)',platformBg:'rgba(245,100,0,.07)',
+    status:'Active',
+    stats:[{id:'card-e-rev',label:'Rev/wk',default:'$0.00'},{id:'card-e-orders',label:'Orders',default:'0'},{id:'card-e-active',label:'Listed',default:'0'}],
+    progressId:'prog-etsy',progressTarget:200,
+    modules:['research','design','qa','publisher','performance'],
+    galleryPlatform:'etsy',
+    primaryAction:{label:'<i class="ti ti-player-play"></i> Run Full Pipeline',fn:'runFullPipeline()'},
+    secondaryActions:[{label:'Research',fn:"runAgent('research')"},{label:'Design',fn:"runAgent('design')"},{label:'QA',fn:"runAgent('qa')"}],
+  },
+  'fiverr-thumbnails':{
+    id:'fiverr-thumbnails',name:'Fiverr Thumbnails',icon:'&#127902;',
+    platform:'FIVERR',platformColor:'var(--fv-color)',platformBg:'rgba(29,191,115,.07)',
+    status:'Active',
+    stats:[{id:'card-fvt-orders',label:'Orders/wk',default:'0'},{id:'card-fvt-del',label:'Delivered',default:'0'},{id:'card-fvt-rev',label:'Rev/wk',default:'$0.00'}],
+    progressId:'prog-fvt',progressTarget:100,
+    modules:['fiverr_orders','fiverr_reviews','fiverr_scout'],
+    galleryPlatform:'fiverr',gigFilter:'thumbnail',
+    primaryAction:{label:'<i class="ti ti-mail-opened"></i> Check Orders',fn:"runAgent('fiverr_orders')"},
+    secondaryActions:[{label:'Fulfill',fn:"runAgent('fiverr_reviews')"}],
+  },
+  'fiverr-logos':{
+    id:'fiverr-logos',name:'Fiverr Logos',icon:'&#128394;',
+    platform:'FIVERR',platformColor:'var(--fv-color)',platformBg:'rgba(29,191,115,.07)',
+    status:'Active',
+    stats:[{id:'card-fvl-count',label:'Logos',default:'0'},{id:'card-fvl-orders',label:'Orders/wk',default:'0'},{id:'card-fvl-rev',label:'Revenue',default:'$0.00'}],
+    progressId:'prog-fvl',progressTarget:50,
+    modules:['fiverr_orders','fiverr_reviews','fiverr_scout'],
+    galleryPlatform:'fiverr',gigFilter:'logo',
+    primaryAction:{label:'<i class="ti ti-mail-opened"></i> Check Orders',fn:"runAgent('fiverr_orders')"},
+    secondaryActions:[{label:'Fulfill',fn:"runAgent('fiverr_reviews')"}],
+  },
+  'fiverr-social':{
+    id:'fiverr-social',name:'Fiverr Social Media',icon:'&#128241;',
+    platform:'FIVERR',platformColor:'var(--fv-color)',platformBg:'rgba(29,191,115,.07)',
+    status:'Active',
+    stats:[{id:'card-fvs-count',label:'Posts',default:'0'},{id:'card-fvs-orders',label:'Orders/wk',default:'0'},{id:'card-fvs-rev',label:'Revenue',default:'$0.00'}],
+    progressId:'prog-fvs',progressTarget:50,
+    modules:['fiverr_orders','fiverr_reviews','fiverr_scout'],
+    galleryPlatform:'fiverr',gigFilter:'social_media',
+    primaryAction:{label:'<i class="ti ti-mail-opened"></i> Check Orders',fn:"runAgent('fiverr_orders')"},
+    secondaryActions:[{label:'Fulfill',fn:"runAgent('fiverr_reviews')"}],
+  },
+};
+
+// ── Render home business cards ─────────────────────────────────────────────
+function renderBizCards(){
+  const grid=$('biz-grid'); if(!grid) return;
+  const order=['etsy','fiverr-thumbnails','fiverr-logos','fiverr-social'];
+  grid.innerHTML=order.map((id,i)=>{
+    const b=BIZ_CONFIG[id];
+    const statsHtml=b.stats.map(s=>`<div class="biz-stat"><div class="biz-stat-val shimmer-load" id="${s.id}">${s.default}</div><div class="biz-stat-lbl">${s.label}</div></div>`).join('');
+    return `<div class="biz-card" onclick="showBusiness('${id}')">
+      <div class="biz-card-hdr">
+        <div>
+          <div class="biz-card-name">${b.icon} ${b.name}</div>
+          <span class="biz-badge" style="color:${b.platformColor};border-color:${b.platformColor}44;background:${b.platformBg}">${b.platform}</span>
+          <span class="biz-status status-${b.status.toLowerCase().replace(' ','-')}">${b.status}</span>
+        </div>
+      </div>
+      <div class="biz-card-stats">${statsHtml}</div>
+      <div class="biz-card-footer">
+        <div class="biz-progress-wrap"><div class="biz-progress-fill" id="${b.progressId}"></div></div>
+        <div class="biz-progress-label">vs target</div>
+        <div class="biz-card-cta">OPEN &#8594;</div>
+      </div>
+    </div>`;
+  }).join('');
+  setTimeout(()=> $$('.biz-card').forEach((c,i)=>setTimeout(()=>c.classList.add('entered'),i*80)), 60);
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
-(async function init() {
-  await tick();
+// ── View management ────────────────────────────────────────────────────────
+let _currentBiz=null;
+
+function showView(view){
+  const home=$('view-home'),detail=$('view-detail');
+  if(view==='home'){
+    home.classList.remove('hidden'); detail.classList.add('hidden'); _currentBiz=null;
+    $$('.biz-card').forEach(c=>c.classList.remove('entered'));
+    setTimeout(()=>$$('.biz-card').forEach((c,i)=>setTimeout(()=>c.classList.add('entered'),i*80)),60);
+  }
+}
+
+function showBusiness(bizId){
+  _currentBiz=bizId;
+  const biz=BIZ_CONFIG[bizId]; if(!biz) return;
+  $('view-home').classList.add('hidden'); $('view-detail').classList.remove('hidden');
+
+  // Header
+  const nameEl=$('detail-name');
+  if(nameEl){ nameEl.textContent=biz.icon+' '+biz.name; nameEl.className='detail-biz-name blurtext'; void nameEl.offsetWidth; nameEl.className='detail-biz-name blurtext'; }
+  const pb=$('detail-platform-badge');
+  if(pb){ pb.textContent=biz.platform; pb.style.cssText=`color:${biz.platformColor};border:1px solid ${biz.platformColor}44;background:${biz.platformBg};display:inline-flex`; }
+  const sb=$('detail-status-badge');
+  if(sb){ sb.textContent=biz.status; sb.className='badge '+(biz.status==='Active'?'badge-green':'badge-gray'); }
+
+  // Stats bar with shimmer → CountUp
+  const statsRow=$('det-stats-row');
+  if(statsRow){
+    statsRow.innerHTML=biz.stats.map(s=>`<div class="det-stat"><div class="det-stat-val shimmer-load" id="ds-${s.id}">${s.default}</div><div class="det-stat-lbl">${s.label}</div></div>`).join('');
+    loadDetailStats(bizId);
+  }
+
+  // Gallery filters
+  const fEl=$('detail-gallery-filters');
+  if(fEl){
+    if(biz.galleryPlatform==='etsy'){
+      fEl.innerHTML=`<button class="tab active" onclick="filterDesigns('etsy','all',this)">All</button><button class="tab" onclick="filterDesigns('etsy','approved',this)">Approved</button><button class="tab" onclick="filterDesigns('etsy','rejected',this)">Rejected</button><button class="tab" onclick="filterDesigns('etsy','generated',this)">Pending</button>`;
+      etsyFilter='all';
+    } else {
+      fEl.innerHTML=`<button class="tab active" onclick="filterDesigns('fiverr','all',this)">All</button><button class="tab" onclick="filterDesigns('fiverr','approved',this)">Ready</button><button class="tab" onclick="filterDesigns('fiverr','published',this)">Delivered</button>`;
+      fiverrFilter='all'; fiverrGigFilter=biz.gigFilter||'all';
+    }
+  }
+
+  // Load / render designs
+  const dg=$('detail-designs-grid'); if(dg) dg.innerHTML='<div class="loading"><span class="spinner"></span>Loading...</div>';
+  if(biz.galleryPlatform==='etsy'){ if(state.etsyDesigns.length) renderDetailDesigns('etsy'); else loadEtsyDesigns(); }
+  else { if(state.fiverrDesigns.length) renderDetailDesigns('fiverr'); else loadFiverrDesigns(); }
+
+  // Module cards
+  const modList=$('detail-modules-list');
+  if(modList){
+    modList.innerHTML=biz.modules.map(mk=>{
+      const agent=AGENTS_META.find(a=>a.key===mk)||{key:mk,label:mk,run:mk,desc:''};
+      const info=state.agentStatus[mk]||{};
+      const dotBg={running:'var(--yellow)',complete:'var(--green)',error:'var(--red)'}[info.status]||'#2a2a2a';
+      return `<div class="det-mod" onclick="openModuleOverlay('${mk}')">
+        <div class="det-mod-dot" id="mc-dot-${mk}" style="background:${dotBg}"></div>
+        <div class="det-mod-info">
+          <div class="det-mod-name">${agent.label.toUpperCase()}</div>
+          <div class="det-mod-row">
+            <span class="det-mod-time" id="mc-time-${mk}">${info.started_at?timeAgo(info.started_at):'Never run'}</span>
+            <span class="det-mod-act" id="mc-last-${mk}">${info.current_step||agent.desc||''}</span>
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="event.stopPropagation();runAgent('${agent.run||mk}')" style="flex-shrink:0">Run</button>
+      </div>`;
+    }).join('');
+  }
+
+  // Footer
+  const footer=$('detail-footer');
+  if(footer){
+    footer.innerHTML=`<button class="btn-acc" style="padding:8px 16px;font-size:12px" onclick="${biz.primaryAction.fn}">${biz.primaryAction.label}</button>
+      ${(biz.secondaryActions||[]).map(a=>`<button class="btn btn-sm" onclick="${a.fn}">${a.label}</button>`).join('')}
+      <div style="margin-left:auto"><button class="btn btn-sm" onclick="loadDetailStats('${bizId}');if('${biz.galleryPlatform}'==='etsy')loadEtsyDesigns();else loadFiverrDesigns()"><i class="ti ti-refresh"></i> Refresh</button></div>`;
+  }
+}
+
+async function loadDetailStats(bizId){
+  const biz=BIZ_CONFIG[bizId]; if(!biz) return;
+  const [etsy,fiverr]=await Promise.all([apiFetch('/etsy/stats'),apiFetch('/fiverr/stats')]);
+  const src={
+    'card-e-rev':     etsy  ? parseFloat(etsy.revenue_this_week)||0 : null,
+    'card-e-orders':  etsy  ? parseInt(etsy.orders_this_week||0) : null,
+    'card-e-active':  etsy  ? parseInt(etsy.active_listings||0) : null,
+    'card-fvt-orders':fiverr? parseInt(fiverr.orders_this_week||0) : null,
+    'card-fvt-del':   fiverr? parseInt(fiverr.delivered_total||0) : null,
+    'card-fvt-rev':   fiverr? parseFloat(fiverr.revenue_this_week)||0 : null,
+    'card-fvl-count': fiverr? parseInt(fiverr.gig_breakdown?.logo||0) : null,
+    'card-fvl-orders':fiverr? parseInt(fiverr.orders_this_week||0) : null,
+    'card-fvl-rev':   fiverr? parseFloat(fiverr.revenue_this_week)||0 : null,
+    'card-fvs-count': fiverr? parseInt(fiverr.gig_breakdown?.social_media||0) : null,
+    'card-fvs-orders':fiverr? parseInt(fiverr.orders_this_week||0) : null,
+    'card-fvs-rev':   fiverr? parseFloat(fiverr.revenue_this_week)||0 : null,
+  };
+  biz.stats.forEach(s=>{
+    const el=$('ds-'+s.id); if(!el) return;
+    const val=src[s.id]; if(val==null){ el.classList.remove('shimmer-load'); el.textContent='—'; return; }
+    el.classList.remove('shimmer-load');
+    const isMoney=s.label.toLowerCase().includes('rev');
+    countUp(el, val, isMoney?'$':'', isMoney?2:0);
+  });
+}
+
+// ── Tick ───────────────────────────────────────────────────────────────────
+async function tick(){
+  await Promise.all([loadActivity(),pollAgentStatus(),loadNotifications(),updateSchedulerStatus()]);
   loadOverview();
-  setInterval(tick, 10000);      // activity + status every 10s
-  setInterval(loadOverview, 60000); // overview stats every 60s
+}
+
+// ── Lightbox ───────────────────────────────────────────────────────────────
+const _lb={gallery:'etsy',idx:0};
+function _lbDesigns(){ return _lb.gallery==='etsy'?state.etsyDesigns:state.fiverrDesigns; }
+function openLightbox(gallery,idx){ _lb.gallery=gallery; _lb.idx=idx; _lbRender(); $('lightbox').classList.add('open'); }
+function closeLightbox(){ $('lightbox').classList.remove('open'); }
+function lightboxNav(dir){ const list=_lbDesigns(); _lb.idx=(_lb.idx+dir+list.length)%list.length; _lbRender(); }
+function lbBackdropClick(e){ if(e.target===$('lightbox')) closeLightbox(); }
+
+function _lbRender(){
+  const list=_lbDesigns(); if(!list.length){ closeLightbox(); return; }
+  const idx=Math.max(0,Math.min(_lb.idx,list.length-1)); _lb.idx=idx;
+  const d=list[idx];
+  $('lb-counter').textContent=`${idx+1} / ${list.length}`;
+  $('lb-prev').style.display=list.length>1?'':'none';
+  $('lb-next').style.display=list.length>1?'':'none';
+  const imgEl=$('lb-img'),noImg=$('lb-no-img');
+  if(d.has_file!==false&&d.url){ imgEl.src=d.url; imgEl.alt=d.niche||''; imgEl.className='lb-image status-'+(d.status||'generated'); imgEl.style.display=''; noImg.style.display='none'; }
+  else{ imgEl.style.display='none'; noImg.style.display=''; }
+  $('lb-niche').textContent=d.niche||d.video_title||d.channel_niche||'Unknown';
+  $('lb-badge').innerHTML=_lb.gallery==='etsy'?etsyStatusBadge(d.status):fiverrStatusBadge(d.status);
+  $('lb-qa').textContent=d.qa_reason?`"${d.qa_reason}"` :'';
+  const parts=[]; if(d.cost!=null) parts.push('$'+Number(d.cost).toFixed(4)); if(d.created_at) parts.push(fmtDate(d.created_at)); if(d.platform) parts.push(d.platform.toUpperCase()); $('lb-info').textContent=parts.join(' · ');
+  const actEl=$('lb-actions');
+  if(_lb.gallery==='etsy'&&d.db_id){ const a=`<button class="btn-approve" onclick="lbOverride('approved')">+ Approve</button>`,r=`<button class="btn-reject" onclick="lbOverride('rejected')">- Reject</button>`; actEl.innerHTML=d.status==='approved'?r:d.status==='rejected'?a:a+r; }
+  else actEl.innerHTML='';
+}
+
+async function lbOverride(newStatus){
+  const list=_lbDesigns(),d=list[_lb.idx]; if(!d||!d.db_id) return;
+  const ep=newStatus==='approved'?'/designs/approve':'/designs/reject';
+  try{
+    const res=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({design_id:d.db_id}),cache:'no-store'});
+    const data=await res.json(); if(!res.ok||data.error) return;
+    d.status=newStatus;
+    document.querySelectorAll(`[data-design-id="${d.db_id}"]`).forEach(card=>{ card.classList.toggle('rejected',newStatus==='rejected'); const meta=card.querySelector(`[data-meta-id="${d.db_id}"]`); if(meta) meta.innerHTML=etsyStatusBadge(newStatus); const actions=card.querySelector('.dc-actions'); if(actions) actions.outerHTML=_overrideBtns(newStatus,d.db_id); });
+    _lbRender();
+  }catch{}
+}
+
+// ── Keyboard ───────────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if($('lightbox').classList.contains('open')){ closeLightbox(); return; }
+    if($('mod-overlay').classList.contains('open')){ closeModOverlay(); return; }
+  }
+  if($('lightbox').classList.contains('open')){
+    if(e.key==='ArrowLeft') lightboxNav(-1);
+    if(e.key==='ArrowRight') lightboxNav(1);
+  }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(async function init(){
+  renderBizCards();
+  loadAgentGrid();
+  await tick();
+  loadStreamStats();
+  loadEtsyDesigns();
+  loadFiverrDesigns();
+  setInterval(tick,10000);
+  setInterval(loadOverview,60000);
+  setInterval(loadStreamStats,60000);
+  setInterval(()=>{ loadEtsyDesigns(); loadFiverrDesigns(); },120000);
+  await tryReconnect();
+  fetch('/run/fiverr_orders',{method:'POST',cache:'no-store'}).catch(()=>{});
 })();
 </script>
 </body>

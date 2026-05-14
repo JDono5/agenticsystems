@@ -15,7 +15,7 @@ ROOT = Path(__file__).parent.parent
 load_dotenv(ROOT / ".env")
 
 sys.path.insert(0, str(ROOT))
-from core.supabase_client import supabase  # noqa: E402
+from core.supabase_client import supabase, update_design_status  # noqa: E402
 
 app = Flask(__name__)
 _agent_lock  = threading.Lock()
@@ -40,26 +40,55 @@ threading.Thread(target=_seed_activity_log, daemon=True).start()
 agent_status: dict = {}
 
 # Monthly spend cache — refreshed at most every 30 s to keep /agent-status cheap
-_spend_cache: dict = {"value": 0.0, "at": 0.0}
+_spend_cache: dict = {"value": 0.0, "by_provider": {}, "at": 0.0}
 
 
 def _get_cached_spend() -> float:
-    now = time.monotonic()
-    if now - _spend_cache["at"] > 30:
-        try:
-            month_start = datetime(
-                datetime.now(timezone.utc).year,
-                datetime.now(timezone.utc).month,
-                1, tzinfo=timezone.utc,
-            ).isoformat()
-            rows = _safe_data(
-                supabase.table("cost_log").select("cost_usd").gte("timestamp", month_start)
-            )
-            _spend_cache["value"] = round(sum(float(r["cost_usd"]) for r in rows), 4)
-            _spend_cache["at"]    = now
-        except Exception:
-            pass
+    """Return total monthly spend; refresh cache if stale."""
+    _refresh_spend_cache()
     return _spend_cache["value"]
+
+
+def _get_spend_breakdown() -> dict:
+    """Return {total, by_provider: {anthropic, openai, google, ...}} for the current month."""
+    _refresh_spend_cache()
+    return {
+        "total":       _spend_cache["value"],
+        "by_provider": dict(_spend_cache["by_provider"]),
+    }
+
+
+def _refresh_spend_cache() -> None:
+    now = time.monotonic()
+    if now - _spend_cache["at"] <= 30:
+        return
+    try:
+        month_start = datetime(
+            datetime.now(timezone.utc).year,
+            datetime.now(timezone.utc).month,
+            1, tzinfo=timezone.utc,
+        ).isoformat()
+        rows = _safe_data(
+            supabase.table("cost_log")
+            .select("provider, cost_usd")
+            .gte("timestamp", month_start)
+        )
+        total = 0.0
+        by_provider: dict = {}
+        for r in rows:
+            c = float(r.get("cost_usd") or 0)
+            p = r.get("provider") or "unknown"
+            total += c
+            by_provider[p] = round(by_provider.get(p, 0.0) + c, 6)
+        _spend_cache["value"]       = round(total, 4)
+        _spend_cache["by_provider"] = by_provider
+        _spend_cache["at"]          = now
+    except Exception:
+        pass
+
+
+# Pre-warm the spend cache so the first /agent-status call returns real data
+threading.Thread(target=_refresh_spend_cache, daemon=True).start()
 
 
 def _set_status(name: str, **kwargs) -> None:
@@ -196,6 +225,7 @@ def _stream_agent(cmd: list[str], agent_name: str = ""):
         try:
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
+            env["PYTHONIOENCODING"] = "utf-8"   # prevent cp1252 crash on Windows
             proc = subprocess.Popen(
                 cmd, cwd=str(ROOT),
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -260,6 +290,24 @@ def run_cleanup():
 def run_cleanup_orphans():
     return _stream_agent([sys.executable, "core/cleanup.py", "--orphans-only"], agent_name="cleanup")
 
+
+@app.route("/run/pipeline_reset",    methods=["POST"])
+def run_pipeline_reset():
+    """Force-release the pipeline lock in case a previous run got stuck."""
+    global _pipeline_lock_ts
+    released = False
+    if _pipeline_lock.locked():
+        try:
+            _pipeline_lock.release()
+            released = True
+        except RuntimeError:
+            pass
+    _pipeline_lock_ts = 0.0
+    with _run_state_lock:
+        _run_state["pipeline_running"] = False
+        _run_state["current_stage"]    = None
+    return jsonify({"released": released, "message": "Pipeline lock released" if released else "Lock was not held"})
+
 @app.route("/run/scout",             methods=["POST"])
 def run_scout():
     return _stream_agent([sys.executable, "agents/scout_agent.py", "--mock"], agent_name="scout")
@@ -305,6 +353,334 @@ def run_publisher():
     return _stream_agent([sys.executable, "agents/publisher_agent.py"], agent_name="publisher")
 
 
+# ─── Pipeline run state (survives client disconnects) ─────────────────────────
+_ALL_STAGES = ["research", "design", "qa"]
+_MAX_LOG_LINES = 500
+
+_run_state: dict = {
+    "pipeline_running": False,
+    "current_stage":    None,
+    "stage_logs":       {s: [] for s in _ALL_STAGES},
+    "stage_results":    {},
+    "completed_stages": [],
+    "started_at":       None,
+    "platform":         "etsy",
+}
+_run_state_lock     = threading.Lock()
+_pipeline_lock      = threading.Lock()
+_pipeline_lock_ts   = 0.0  # epoch time when lock was last acquired
+
+
+def _rs_append(stage: str, line: str) -> None:
+    """Append a log line to the run state (thread-safe, capped at _MAX_LOG_LINES)."""
+    with _run_state_lock:
+        log = _run_state["stage_logs"].setdefault(stage, [])
+        log.append(line)
+        if len(log) > _MAX_LOG_LINES:
+            del log[0]
+
+
+def _rs_reset(platform: str = "etsy") -> None:
+    """Reset run state before starting a new pipeline run."""
+    with _run_state_lock:
+        _run_state.update({
+            "pipeline_running": True,
+            "current_stage":    None,
+            "stage_logs":       {s: [] for s in _ALL_STAGES},
+            "stage_results":    {},
+            "completed_stages": [],
+            "started_at":       datetime.now(timezone.utc).isoformat(),
+            "platform":         platform,
+        })
+
+
+def _run_pipeline_thread(platform: str) -> None:
+    """
+    Run all 3 pipeline stages in a background thread so the pipeline
+    survives client disconnects. Logs every line into _run_state so
+    reconnecting clients can replay history.
+    """
+    stages = [
+        (
+            [sys.executable, "agents/research_agent.py"]
+            + (["--platform", "fiverr"] if platform == "fiverr" else []),
+            "research",
+        ),
+        ([sys.executable, "agents/design_agent.py", "--full"], "design"),
+        ([sys.executable, "agents/qa_agent.py"],               "qa"),
+    ]
+
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    try:
+        for args, name in stages:
+            print(f"[full_pipeline] Starting {name} stage", flush=True)
+            with _run_state_lock:
+                _run_state["current_stage"] = name
+
+            _set_status(name, status="running", progress=5,
+                        current_step=f"{name} starting...",
+                        started_at=datetime.now(timezone.utc).isoformat(),
+                        completed_at=None, cost_this_run=0.0)
+
+            proc = subprocess.Popen(
+                args, cwd=str(ROOT),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace", bufsize=1, env=env,
+            )
+
+            for raw_line in proc.stdout:
+                stripped = raw_line.rstrip()
+                _rs_append(name, stripped)
+                _apply_progress(name, stripped)
+
+            proc.wait()
+            ok = proc.returncode == 0
+            print(f"[full_pipeline] {name} {'complete' if ok else 'FAILED'} (exit {proc.returncode})", flush=True)
+
+            _set_status(name,
+                        status="complete" if ok else "error",
+                        progress=100 if ok else 0,
+                        current_step="Done" if ok else "Failed",
+                        completed_at=datetime.now(timezone.utc).isoformat())
+
+            result_msg = (
+                f"--- [{name.upper()}] complete ---" if ok
+                else f"--- [{name.upper()}] FAILED (exit {proc.returncode}) ---"
+            )
+            _rs_append(name, result_msg)
+
+            with _run_state_lock:
+                _run_state["completed_stages"].append(name)
+                _run_state["stage_results"][name] = "complete" if ok else "error"
+
+            if not ok:
+                break
+
+        all_ok = all(v == "complete" for v in _run_state["stage_results"].values())
+        if all_ok:
+            _rs_append("qa", "--- [PIPELINE] all stages complete ---")
+
+    except Exception as exc:
+        print(f"[full_pipeline] Thread error: {exc}", flush=True)
+        cur = _run_state.get("current_stage")
+        if cur:
+            _rs_append(cur, f"[pipeline] Error: {exc}")
+
+    finally:
+        with _run_state_lock:
+            _run_state["pipeline_running"] = False
+            _run_state["current_stage"]    = None
+        try:
+            _pipeline_lock.release()
+        except RuntimeError:
+            pass
+
+
+def _pipeline_sse_stream(reconnect: bool = False):
+    """
+    Shared SSE response factory used by both the POST (initial run) and
+    GET /run/full_pipeline/stream (reconnect) endpoints.
+
+    reconnect=False  — waits up to 5 s for the background thread to start,
+                       then tails _run_state live.
+    reconnect=True   — replays all existing logs first, then tails live.
+    """
+
+    def generate():
+        yield ": heartbeat\n\n"
+
+        if reconnect and not _run_state["pipeline_running"] and not _run_state["completed_stages"]:
+            yield f"data: {json.dumps('[stream] No pipeline running or recent history.')}\n\n"
+            return
+
+        seen  = {s: 0 for s in _ALL_STAGES}
+        sents: set = set()   # stages whose separator has already been sent
+
+        # ── Replay existing logs (reconnect path) ─────────────────────────────
+        if reconnect:
+            yield f"data: {json.dumps('--- [RECONNECTED] replaying history ---')}\n\n"
+            for stage in _ALL_STAGES:
+                logs = list(_run_state["stage_logs"].get(stage, []))
+                if not logs:
+                    continue
+                yield f"data: {json.dumps(f'--- [{stage.upper()}] stage starting ---')}\n\n"
+                sents.add(stage)
+                for line in logs:
+                    yield f"data: {json.dumps(line)}\n\n"
+                seen[stage] = len(logs)
+
+            if not _run_state["pipeline_running"]:
+                all_ok = all(v == "complete" for v in _run_state["stage_results"].values())
+                yield f"data: {json.dumps('--- [RECONNECTED] pipeline already finished ---')}\n\n"
+                yield f"data: {json.dumps('__DONE__:' + ('0' if all_ok else '1'))}\n\n"
+                return
+
+            yield f"data: {json.dumps('--- [RECONNECTED] now live ---')}\n\n"
+
+        # ── Wait for thread to mark pipeline_running (initial path) ───────────
+        if not reconnect:
+            waited = 0
+            while not _run_state["pipeline_running"] and waited < 50:
+                time.sleep(0.1)
+                waited += 1
+
+        # ── Live tail ─────────────────────────────────────────────────────────
+        prev_stage = None
+        while True:
+            is_running = _run_state["pipeline_running"]
+            cur        = _run_state.get("current_stage")
+
+            # Emit stage separator on transition
+            if cur and cur != prev_stage and cur not in sents:
+                yield f"data: {json.dumps(f'--- [{cur.upper()}] stage starting ---')}\n\n"
+                sents.add(cur)
+                prev_stage = cur
+
+            # Drain new lines for current stage
+            if cur:
+                logs = _run_state["stage_logs"].get(cur, [])
+                pos  = seen.get(cur, 0)
+                for line in logs[pos:]:
+                    yield f"data: {json.dumps(line)}\n\n"
+                seen[cur] = len(logs)
+
+            if not is_running:
+                # Final drain — catch any lines written after the flag flipped
+                for stage in _ALL_STAGES:
+                    logs = _run_state["stage_logs"].get(stage, [])
+                    pos  = seen.get(stage, 0)
+                    for line in logs[pos:]:
+                        yield f"data: {json.dumps(line)}\n\n"
+                    seen[stage] = len(logs)
+
+                all_ok = all(v == "complete" for v in _run_state.get("stage_results", {}).values())
+                yield f"data: {json.dumps('__DONE__:' + ('0' if all_ok else '1'))}\n\n"
+                return
+
+            time.sleep(0.1)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/run/full_pipeline", methods=["POST"])
+def run_full_pipeline():
+    """Start the pipeline (or reconnect to one already running)."""
+    platform = (request.get_json(silent=True) or {}).get("platform", "etsy")
+    print(f"[full_pipeline] Request received - platform={platform}", flush=True)
+
+    global _pipeline_lock_ts
+
+    if not _pipeline_lock.acquire(blocking=False):
+        age = time.time() - _pipeline_lock_ts
+        if age > 600:
+            print(f"[full_pipeline] Stale lock ({age:.0f}s) - force-releasing", flush=True)
+            try:
+                _pipeline_lock.release()
+            except RuntimeError:
+                pass
+            _pipeline_lock.acquire(blocking=True)
+        else:
+            # Already running — reconnect the caller to the live stream
+            print("[full_pipeline] Already running - reconnecting client", flush=True)
+            return _pipeline_sse_stream(reconnect=True)
+
+    _pipeline_lock_ts = time.time()
+    _rs_reset(platform)
+
+    t = threading.Thread(target=_run_pipeline_thread, args=(platform,), daemon=True)
+    t.start()
+
+    return _pipeline_sse_stream(reconnect=False)
+
+
+@app.route("/run/full_pipeline/stream")
+def stream_pipeline_live():
+    """Read-only reconnect endpoint — replays history then streams live."""
+    return _pipeline_sse_stream(reconnect=True)
+
+
+@app.route("/run/state")
+def get_run_state():
+    """Return current pipeline run state for frontend reconnection on reload."""
+    with _run_state_lock:
+        state = {
+            "pipeline_running": _run_state["pipeline_running"],
+            "current_stage":    _run_state["current_stage"],
+            "started_at":       _run_state["started_at"],
+            "platform":         _run_state["platform"],
+            "completed_stages": list(_run_state["completed_stages"]),
+            "stage_results":    dict(_run_state["stage_results"]),
+            # Truncate logs to last 200 lines per stage for the initial state snapshot
+            "stage_logs": {
+                s: list(l[-200:])
+                for s, l in _run_state["stage_logs"].items()
+            },
+        }
+    return jsonify(state)
+
+
+# ─── Scheduler process manager ────────────────────────────────────────────────
+_scheduler_proc: subprocess.Popen | None = None
+_scheduler_lock = threading.Lock()
+
+
+@app.route("/scheduler/status")
+def scheduler_status_route():
+    with _scheduler_lock:
+        running = _scheduler_proc is not None and _scheduler_proc.poll() is None
+    return jsonify({"running": running, "pid": _scheduler_proc.pid if running else None})
+
+
+@app.route("/scheduler/start", methods=["POST"])
+def scheduler_start():
+    global _scheduler_proc
+    with _scheduler_lock:
+        if _scheduler_proc is not None and _scheduler_proc.poll() is None:
+            return jsonify({"ok": True, "status": "already_running", "pid": _scheduler_proc.pid})
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        _scheduler_proc = subprocess.Popen(
+            [sys.executable, "scheduler/main.py"],
+            cwd=str(ROOT), env=env,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        try:
+            from core.activity_logger import log_activity
+            log_activity("scheduler", "system", f"Scheduler started (pid {_scheduler_proc.pid})")
+        except Exception:
+            pass
+    return jsonify({"ok": True, "status": "started", "pid": _scheduler_proc.pid})
+
+
+@app.route("/scheduler/stop", methods=["POST"])
+def scheduler_stop():
+    global _scheduler_proc
+    with _scheduler_lock:
+        if _scheduler_proc is None or _scheduler_proc.poll() is not None:
+            _scheduler_proc = None
+            return jsonify({"ok": True, "status": "not_running"})
+        pid = _scheduler_proc.pid
+        _scheduler_proc.terminate()
+        try:
+            _scheduler_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            _scheduler_proc.kill()
+        _scheduler_proc = None
+        try:
+            from core.activity_logger import log_activity
+            log_activity("scheduler", "system", f"Scheduler stopped (pid {pid})")
+        except Exception:
+            pass
+    return jsonify({"ok": True, "status": "stopped"})
+
+
 # ─── Agent status ─────────────────────────────────────────────────────────────
 
 @app.route("/agent-status")
@@ -312,9 +688,11 @@ def get_agent_status():
     with _status_lock:
         snapshot = {k: dict(v) for k, v in agent_status.items()}
     # Always re-read from env so changes to .env take effect without restart
+    breakdown = _get_spend_breakdown()
     snapshot["__spend__"] = {
-        "month_spend": _get_cached_spend(),
+        "month_spend": breakdown["total"],
         "spend_cap":   float(os.getenv("MONTHLY_SPEND_CAP", "100")),
+        "by_provider": breakdown["by_provider"],
     }
     return jsonify(snapshot)
 
@@ -380,13 +758,21 @@ def etsy_stats():
         net     = round(sum(float(r.get("net_profit") or 0)    for r in sales), 2)
         avg_net = round(net / len(sales), 2) if sales else 0.0
 
+        printify_key  = os.getenv("PRINTIFY_API_KEY",  "").strip()
+        printify_shop = os.getenv("PRINTIFY_SHOP_ID", "").strip()
+        if printify_key and printify_shop:
+            etsy_status = "Active via Printify"
+        else:
+            etsy_status = "Not configured"
+
         return jsonify({
-            "active_listings":   active,
-            "draft_listings":    drafts,
-            "revenue_this_week": revenue,
-            "net_this_week":     net,
-            "orders_this_week":  len(sales),
-            "avg_net_per_sale":  avg_net,
+            "active_listings":      active,
+            "draft_listings":       drafts,
+            "revenue_this_week":    revenue,
+            "net_this_week":        net,
+            "orders_this_week":     len(sales),
+            "avg_net_per_sale":     avg_net,
+            "etsy_connection_status": etsy_status,
         })
     except Exception as e:
         return jsonify({
@@ -404,23 +790,23 @@ def fiverr_stats():
     week = _week_start()
     now  = _iso(datetime.now(timezone.utc))
     try:
-        # Use cost_log as proxy for orders fulfilled this week
-        orders_count = _safe_count(
-            supabase.table("cost_log").select("id", count="exact")
-            .eq("agent", "fiverr_fulfillment")
-            .gte("timestamp", week).lt("timestamp", now)
+        # Orders this week — live from sales table, no caching
+        week_sales = _safe_data(
+            supabase.table("sales").select("gross_revenue, net_profit")
+            .eq("platform", "fiverr")
+            .gte("order_date", week).lt("order_date", now)
         )
+        orders_count = len(week_sales)
+        revenue = round(sum(float(r.get("gross_revenue") or 0) for r in week_sales), 2)
+        print(f"[fiverr/stats] week={week} sales query returned {orders_count} rows, revenue=${revenue}")
 
-        # Revenue from sales table if platform column exists
-        revenue = 0.0
-        try:
-            sales = _safe_data(
-                supabase.table("sales").select("gross_revenue, net_profit")
-                .eq("platform", "fiverr").gte("order_date", week).lt("order_date", now)
-            )
-            revenue = round(sum(float(r.get("gross_revenue") or 0) for r in sales), 2)
-        except Exception:
-            pass
+        # Delivered total (all time) — live from sales table
+        all_sales = _safe_data(
+            supabase.table("sales").select("id", count="exact")
+            .eq("platform", "fiverr")
+        )
+        delivered = len(all_sales)
+        print(f"[fiverr/stats] delivered_total (all-time sales rows) = {delivered}")
 
         # Avg rating from memory
         avg_rating = None
@@ -434,11 +820,21 @@ def fiverr_stats():
         except Exception:
             pass
 
-        # Count local Fiverr design files as a proxy for delivered orders
-        delivered = 0
-        fiverr_dir = ROOT / "designs" / "fiverr"
-        if fiverr_dir.exists():
-            delivered = len(list(fiverr_dir.rglob("*.png")))
+        # Gig type breakdown from designs table
+        gig_counts = {"thumbnail": 0, "logo": 0, "social_media": 0}
+        try:
+            gig_rows = _safe_data(
+                supabase.table("designs").select("gig_type")
+                .eq("platform", "fiverr")
+            )
+            for row in gig_rows:
+                gt = row.get("gig_type") or "thumbnail"
+                if gt in gig_counts:
+                    gig_counts[gt] += 1
+                else:
+                    gig_counts[gt] = 1
+        except Exception:
+            pass
 
         return jsonify({
             "orders_this_week":  orders_count,
@@ -446,11 +842,14 @@ def fiverr_stats():
             "avg_rating":        avg_rating,
             "pending_orders":    0,
             "delivered_total":   delivered,
+            "gig_breakdown":     gig_counts,
         })
     except Exception as e:
+        print(f"[fiverr/stats] ERROR: {e}")
         return jsonify({
             "orders_this_week": 0, "revenue_this_week": 0,
             "avg_rating": None, "pending_orders": 0, "delivered_total": 0,
+            "gig_breakdown": {"thumbnail": 0, "logo": 0, "social_media": 0},
             "error": str(e),
         })
 
@@ -670,7 +1069,22 @@ def list_designs():
         print(f"[/designs] DB query exception: {e}")
         db_rows = []
 
-    db_by_path = {r["file_path"].replace("\\", "/"): r for r in db_rows if r.get("file_path")}
+    def _norm_path(p: str) -> str:
+        """Normalise any stored file_path to a relative forward-slash key.
+
+        Supabase rows may contain absolute Windows paths
+        (D:\\agenticsystems\\designs\\...) or already-relative paths
+        (designs/...).  Strip the ROOT prefix if present so every key
+        has the same form as rel_fwd computed from the filesystem walk.
+        """
+        p = p.replace("\\", "/")
+        root_fwd = str(ROOT).replace("\\", "/").rstrip("/") + "/"
+        if p.startswith(root_fwd):
+            p = p[len(root_fwd):]
+        # Also handle just a leading slash
+        return p.lstrip("/")
+
+    db_by_path = {_norm_path(r["file_path"]): r for r in db_rows if r.get("file_path")}
 
     results = []
     seen    = set()
@@ -701,6 +1115,7 @@ def list_designs():
             if platform_filter and resolved_platform != platform_filter:
                 continue
 
+            print(f"[/designs] {png.name[:16]} db_status={db.get('status','(no match)')} has_file=True db_match={'yes' if db else 'NO'}")
             entry = {
                 "url":             "/" + rel_fwd,
                 "file_path":       rel_fwd,
@@ -766,7 +1181,7 @@ def list_designs():
         p = r.get("platform", "unknown")
         by_platform[p] = by_platform.get(p, 0) + 1
     if platform_filter:
-        print(f"[/designs] filter={repr(platform_filter)} → {len(results)} results {by_platform}")
+        print(f"[/designs] filter={repr(platform_filter)} -> {len(results)} results {by_platform}")
 
     return jsonify(results)
 
@@ -804,6 +1219,48 @@ def list_proposals():
         return jsonify(data)
     except Exception:
         return jsonify([])
+
+
+@app.route("/designs/approve", methods=["POST"])
+def design_approve():
+    """Manual owner override — set a design to 'approved' and log the decision."""
+    data      = request.get_json(silent=True) or {}
+    design_id = (data.get("design_id") or "").strip()
+    if not design_id:
+        return jsonify({"error": "design_id required"}), 400
+    try:
+        update_design_status(design_id, "approved", "Manual owner override")
+        try:
+            from core.activity_logger import log_activity
+            log_activity("owner", "system",
+                         f"Manual override: design {design_id[:8]} set to approved by owner",
+                         {"design_id": design_id, "new_status": "approved"})
+        except Exception:
+            pass
+        return jsonify({"ok": True, "status": "approved"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/designs/reject", methods=["POST"])
+def design_reject():
+    """Manual owner override — set a design to 'rejected' and log the decision."""
+    data      = request.get_json(silent=True) or {}
+    design_id = (data.get("design_id") or "").strip()
+    if not design_id:
+        return jsonify({"error": "design_id required"}), 400
+    try:
+        update_design_status(design_id, "rejected", "Manual owner override")
+        try:
+            from core.activity_logger import log_activity
+            log_activity("owner", "system",
+                         f"Manual override: design {design_id[:8]} set to rejected by owner",
+                         {"design_id": design_id, "new_status": "rejected"})
+        except Exception:
+            pass
+        return jsonify({"ok": True, "status": "rejected"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/proposals/approve", methods=["POST"])
@@ -959,15 +1416,14 @@ def orchestrator_chat():
 # ─── /set-env ─────────────────────────────────────────────────────────────────
 
 _ALLOWED_ENV_KEYS = {
-    "ETSY_API_KEY", "ETSY_API_SECRET", "ETSY_ACCESS_TOKEN",
-    "ETSY_REFRESH_TOKEN", "ETSY_SHOP_ID",
     "PRINTIFY_API_KEY", "PRINTIFY_SHOP_ID",
+    "PRINTIFY_BLUEPRINT_ID", "PRINTIFY_PROVIDER_ID",
     "FIVERR_USERNAME", "FIVERR_NOTIFICATION_EMAIL",
-    "IMAP_SERVER", "IMAP_PORT", "IMAP_EMAIL", "IMAP_PASSWORD",
+    "GMAIL_APP_PASSWORD", "GMAIL_IMAP_SERVER", "GMAIL_IMAP_PORT",
     "SENDGRID_API_KEY", "REPORT_EMAIL",
     "DRAFT_MODE", "MONTHLY_SPEND_CAP", "DAILY_DESIGN_TARGET",
     "DAILY_LISTING_CAP", "LISTING_SPACING_MINUTES",
-    "PINTEREST_ACCESS_TOKEN", "REDBUBBLE_API_KEY",
+    "ANTHROPIC_MODEL", "MOCK_ETSY", "MOCK_FIVERR", "MOCK_SCOUT",
 }
 
 

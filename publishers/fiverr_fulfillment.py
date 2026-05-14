@@ -1,9 +1,14 @@
 """
 publishers/fiverr_fulfillment.py — Main Fiverr fulfillment orchestrator.
 
+Supports three gig types with automatic routing:
+  thumbnail  — YouTube thumbnail (1536x1024, FiverrPromptBuilder + FiverrQA)
+  logo       — Minimalist brand logo (1024x1024, LogoPromptBuilder + LogoQA)
+  social_media — Instagram post graphic (1024x1024, SocialPromptBuilder + SocialQA)
+
 Full pipeline per order:
-  parse -> download attachments -> analyze buyer images -> build prompt ->
-  generate thumbnail (gpt-image-1) -> QA loop (up to 3 attempts) ->
+  parse -> detect gig type -> download attachments -> analyze buyer images ->
+  build prompt -> generate image (gpt-image-1) -> QA loop (up to 3 attempts) ->
   save to disk -> log to Supabase -> send delivery email -> log to memory
 
 Also handles IMAP polling and review detection.
@@ -31,35 +36,80 @@ from core.spend_monitor import check_cap
 from core.supabase_client import save_design
 from core.emailer import send_alert
 
-from publishers.fiverr_parser        import parse_order, is_revision, extract_attachments, detect_package_tier
-from publishers.fiverr_analyzer      import analyze_buyer_images, is_face_photo
-from publishers.fiverr_prompt_builder import build_thumbnail_prompt, build_background_only_prompt
-from publishers.fiverr_qa            import qa_thumbnail
-from publishers.fiverr_learning      import log_order_to_memory, log_review_to_memory, get_niche_memory
+from publishers.fiverr_parser              import parse_order, is_revision, extract_attachments, detect_package_tier
+from publishers.fiverr_analyzer            import analyze_buyer_images, is_face_photo
+from publishers.fiverr_prompt_builder      import build_thumbnail_prompt, build_background_only_prompt
+from publishers.fiverr_qa                  import qa_thumbnail
+from publishers.fiverr_learning            import log_order_to_memory, log_review_to_memory, get_niche_memory
+from publishers.fiverr_logo_prompt_builder import build_logo_prompt
+from publishers.fiverr_logo_qa             import evaluate as logo_qa_evaluate
+from publishers.fiverr_social_prompt_builder import build_social_prompt
+from publishers.fiverr_social_qa           import evaluate as social_qa_evaluate
 
 load_dotenv()
 
-MODULE_NAME    = "fiverr_fulfillment"
-IMAGE_MODEL    = "gpt-image-1"
-VISION_MODEL   = "gpt-4o"
-THUMBNAIL_COST = 0.040      # gpt-image-1 high quality per image
-MAX_QA_RETRIES = 3
-ROOT           = Path(__file__).parent.parent
+MODULE_NAME        = "fiverr_fulfillment"
+IMAGE_MODEL        = "gpt-image-1"
+VISION_MODEL       = "gpt-4o"
+THUMBNAIL_COST     = 0.040      # gpt-image-1 high quality per image
+MAX_QA_RETRIES     = 3          # thumbnails + social media
+MAX_QA_RETRIES_LOGO = 5         # logos need more attempts — white background is hard to enforce
+ROOT               = Path(__file__).parent.parent
 
 
-# ─── Image generation + composite ────────────────────────────────────────────
+# ─── Gig type detection ───────────────────────────────────────────────────────
 
-def _generate_thumbnail(prompt: str) -> bytes:
-    """Generate a landscape thumbnail via gpt-image-1 and return raw PNG bytes."""
+_LOGO_KEYWORDS    = {"logo", "brand", "icon", "wordmark", "brand identity", "logotype"}
+_SOCIAL_KEYWORDS  = {"instagram", "post", "social", "graphic", "content", "ig post",
+                     "social media", "social post", "content graphic"}
+
+def detect_gig_type(order: dict) -> str:
+    """
+    Detect which Fiverr gig an order belongs to by scanning all text fields.
+
+    Precedence:
+      1. Already set 'gig_type' key in the order (from Claude parser or email header)
+      2. Keyword scan of requirements, subject, video_title, buyer_answers
+      3. Default to 'thumbnail'
+    """
+    if order.get("gig_type") in ("logo", "social_media", "thumbnail"):
+        return order["gig_type"]
+
+    search_text = " ".join(filter(None, [
+        order.get("requirements", ""),
+        order.get("subject", ""),
+        order.get("video_title", ""),
+        order.get("raw_requirements", ""),
+        str(order.get("buyer_answers", "")),
+    ])).lower()
+
+    for kw in _LOGO_KEYWORDS:
+        if kw in search_text:
+            return "logo"
+    for kw in _SOCIAL_KEYWORDS:
+        if kw in search_text:
+            return "social_media"
+    return "thumbnail"
+
+
+# ─── Image generation ─────────────────────────────────────────────────────────
+
+def _generate_image(prompt: str, size: str = "1536x1024") -> bytes:
+    """Generate an image via gpt-image-1 and return raw PNG bytes."""
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     response = client.images.generate(
         model=IMAGE_MODEL,
         prompt=prompt,
         n=1,
-        size="1536x1024",
+        size=size,
         quality="high",
     )
     return base64.b64decode(response.data[0].b64_json)
+
+
+def _generate_thumbnail(prompt: str) -> bytes:
+    """Backwards-compatible wrapper for thumbnail generation (1536x1024)."""
+    return _generate_image(prompt, size="1536x1024")
 
 
 def _composite_buyer_photo(
@@ -187,15 +237,19 @@ def _send_delivery_email(
 
 def fulfill_order(order: dict) -> bool:
     """
-    Full Fiverr order fulfillment:
-      1. Read niche memory for any prior successful styles
-      2. Analyze buyer images if present
-      3. Build prompt incorporating all context
-      4. Generate thumbnail with QA loop (up to MAX_QA_RETRIES retries)
-      5. Save PNG to designs/fiverr/{date}/{order_id}.png
-      6. Log to Supabase designs table (platform='fiverr')
-      7. Send delivery notification email
-      8. Write order to learning memory
+    Full Fiverr order fulfillment with gig-type routing.
+
+    Detects gig type (thumbnail / logo / social_media) from the order and
+    dispatches to the appropriate prompt builder and QA module.
+
+      1. Detect gig type and set order['gig_type']
+      2. Read niche/style memory for any prior successful styles
+      3. Analyze buyer images if present
+      4. Build prompt using gig-specific builder
+      5. Generate image (size depends on gig type) with QA loop
+      6. Save PNG to designs/fiverr/{date}/{order_id}.png
+      7. Log to Supabase / send delivery email
+      8. Write to learning memory
 
     Returns True on success.
     """
@@ -203,12 +257,16 @@ def fulfill_order(order: dict) -> bool:
         print(f"[{MODULE_NAME}] Spend cap reached — cannot fulfill order.")
         return False
 
+    # Detect and lock in the gig type
+    gig_type = detect_gig_type(order)
+    order["gig_type"] = gig_type
+
     order_id    = order.get("order_id", f"fvr_{uuid.uuid4().hex[:8]}")
     video_title = order.get("video_title", "YouTube Video")
     niche       = order.get("channel_niche", "lifestyle")
     package     = order.get("package_tier", "basic")
 
-    print(f"\n[{MODULE_NAME}] Fulfilling order {order_id} ({package})")
+    print(f"\n[{MODULE_NAME}] Fulfilling order {order_id} ({package}) [{gig_type}]")
     print(f"[{MODULE_NAME}]   Video: \"{video_title}\"")
     print(f"[{MODULE_NAME}]   Niche: {niche}")
 
@@ -256,16 +314,32 @@ def fulfill_order(order: dict) -> bool:
     else:
         print(f"[{MODULE_NAME}]   No buyer images - using niche defaults")
 
-    # ── 3. Determine quantity from package + config ────────────────────────
-    qty = 1
-    try:
-        cfg_path = ROOT / "platform_config" / "fiverr.json"
-        cfg      = json.loads(cfg_path.read_text(encoding="utf-8"))
-        qty      = cfg.get("gig", {}).get("packages", {}).get(package, {}).get("quantity", 1)
-    except Exception:
-        qty = {"basic": 1, "standard": 2, "premium": 3}.get(package, 1)
+    # ── 3. Determine quantity + image size from gig config ─────────────────
+    qty        = 1
+    image_size = "1536x1024"   # thumbnail default
 
-    print(f"[{MODULE_NAME}]   Generating {qty} thumbnail(s) for {package} package")
+    if gig_type == "logo":
+        image_size = "1024x1024"
+        try:
+            cfg = json.loads((ROOT / "platform_config" / "fiverr_logo.json").read_text())
+            qty = cfg.get("package_tiers", {}).get(package, {}).get("deliverables", 1)
+        except Exception:
+            qty = {"basic": 1, "standard": 3, "premium": 5}.get(package, 1)
+    elif gig_type == "social_media":
+        image_size = "1024x1024"
+        try:
+            cfg = json.loads((ROOT / "platform_config" / "fiverr_social.json").read_text())
+            qty = cfg.get("package_tiers", {}).get(package, {}).get("deliverables", 3)
+        except Exception:
+            qty = {"basic": 3, "standard": 8, "premium": 20}.get(package, 3)
+    else:
+        try:
+            cfg = json.loads((ROOT / "platform_config" / "fiverr.json").read_text())
+            qty = cfg.get("gig", {}).get("packages", {}).get(package, {}).get("quantity", 1)
+        except Exception:
+            qty = {"basic": 1, "standard": 2, "premium": 3}.get(package, 1)
+
+    print(f"[{MODULE_NAME}]   Generating {qty} image(s) for {package} {gig_type} package")
 
     date_str   = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     output_dir = ROOT / "designs" / "fiverr" / date_str
@@ -277,23 +351,22 @@ def fulfill_order(order: dict) -> bool:
     buyer_photo_composite_failed    = False
 
     # ── 4-5. Generate + QA loop ────────────────────────────────────────────
-    for thumb_num in range(qty):
+    for img_num in range(qty):
         revision_feedback = order.get("revision_feedback") if order.get("revision_of") else None
         image_bytes       = None
         qa_fix            = revision_feedback  # carries QA-suggested fix across attempts
 
-        print(f"[{MODULE_NAME}]   Thumbnail {thumb_num+1}/{qty}")
+        print(f"[{MODULE_NAME}]   Image {img_num+1}/{qty} ({gig_type})")
 
-        # ── Case A: buyer has a face photo to composite ────────────────────
-        if buyer_face_paths and order.get("has_face"):
+        # ── Thumbnail Case A: buyer has a face photo to composite ──────────
+        if gig_type == "thumbnail" and buyer_face_paths and order.get("has_face"):
             buyer_photo = buyer_face_paths[0]
             print(f"[{MODULE_NAME}]   Case A: buyer face photo — 2-stage pipeline")
 
-            # Stage 1: background-only generation
             bg_prompt   = build_background_only_prompt(order, style_context)
             last_prompt = bg_prompt
             bg_bytes    = api_call_with_retry(
-                lambda p=bg_prompt: _generate_thumbnail(p),
+                lambda p=bg_prompt: _generate_image(p, image_size),
                 max_retries=2, agent_name=MODULE_NAME,
             )
             if bg_bytes:
@@ -301,7 +374,6 @@ def fulfill_order(order: dict) -> bool:
                          tokens_used=0, cost_usd=THUMBNAIL_COST)
                 total_cost += THUMBNAIL_COST
 
-                # Stage 2: composite buyer photo
                 composite = _composite_buyer_photo(bg_bytes, buyer_photo, order)
                 if composite:
                     image_bytes          = composite
@@ -311,21 +383,31 @@ def fulfill_order(order: dict) -> bool:
                     total_cost += THUMBNAIL_COST
                     print(f"[{MODULE_NAME}]   Buyer photo composited successfully")
                 else:
-                    # Stage 2 failed — fall back to illustrated version
                     image_bytes                  = bg_bytes
                     buyer_photo_composite_failed = True
                     print(f"[{MODULE_NAME}]   Composite failed — using background-only fallback")
-            # Fall through to QA with whatever we have
 
-        # ── Case B or no buyer images: normal generation ───────────────────
+        # ── Normal generation path (all gig types) ─────────────────────────
         if not image_bytes:
-            for attempt in range(MAX_QA_RETRIES):
-                prompt = build_thumbnail_prompt(order, style_context, qa_fix)
+            retries = MAX_QA_RETRIES_LOGO if gig_type == "logo" else MAX_QA_RETRIES
+            for attempt in range(retries):
+                # Build prompt via gig-specific builder
+                if gig_type == "logo":
+                    prompt = build_logo_prompt(order, rejection_feedback=qa_fix or "")
+                elif gig_type == "social_media":
+                    # Enrich order with theme label for QA context
+                    from publishers.fiverr_social_prompt_builder import generate_post_theme
+                    theme = generate_post_theme(order, img_num)
+                    order["post_theme"]   = theme["label"]
+                    order["theme_label"]  = theme["label"]
+                    prompt = build_social_prompt(order, post_index=img_num, rejection_feedback=qa_fix or "")
+                else:
+                    prompt = build_thumbnail_prompt(order, style_context, qa_fix)
                 last_prompt = prompt
 
-                print(f"[{MODULE_NAME}]   Attempt {attempt+1}/{MAX_QA_RETRIES}")
+                print(f"[{MODULE_NAME}]   Attempt {attempt+1}/{retries}")
                 image_bytes = api_call_with_retry(
-                    lambda p=prompt: _generate_thumbnail(p),
+                    lambda p=prompt: _generate_image(p, image_size),
                     max_retries=2, agent_name=MODULE_NAME,
                 )
                 if not image_bytes:
@@ -340,9 +422,16 @@ def fulfill_order(order: dict) -> bool:
                 tmp_path = output_dir / f"_qa_tmp_{uuid.uuid4().hex[:6]}.png"
                 tmp_path.write_bytes(image_bytes)
 
+                # Run gig-specific QA
+                if gig_type == "logo":
+                    qa_fn = lambda p=str(tmp_path): logo_qa_evaluate(p, order)
+                elif gig_type == "social_media":
+                    qa_fn = lambda p=str(tmp_path): social_qa_evaluate(p, order)
+                else:
+                    qa_fn = lambda p=str(tmp_path): qa_thumbnail(p, order)
+
                 qa = api_call_with_retry(
-                    lambda p=str(tmp_path): qa_thumbnail(p, order),
-                    max_retries=2, agent_name=MODULE_NAME,
+                    qa_fn, max_retries=2, agent_name=MODULE_NAME,
                 ) or {"pass": True, "reason": "QA skipped", "suggested_fix": None,
                       "cost": 0.0, "tokens": 0}
 
@@ -366,24 +455,25 @@ def fulfill_order(order: dict) -> bool:
                     image_bytes = None
 
         if not image_bytes:
-            print(f"[{MODULE_NAME}]   Could not produce passing thumbnail {thumb_num+1}")
+            print(f"[{MODULE_NAME}]   Could not produce passing image {img_num+1}")
             continue
 
         # ── Save PNG ───────────────────────────────────────────────────────
-        file_id   = f"{order_id}_{thumb_num+1}" if qty > 1 else order_id
+        file_id   = f"{order_id}_{img_num+1}" if qty > 1 else order_id
         png_path  = output_dir / f"{file_id}.png"
         meta_path = output_dir / f"{file_id}.json"
 
         png_path.write_bytes(image_bytes)
         meta = {
-            "order_id":     order_id,
-            "video_title":  video_title,
+            "order_id":      order_id,
+            "gig_type":      gig_type,
+            "video_title":   video_title,
             "channel_niche": niche,
-            "package":      package,
-            "prompt_used":  last_prompt[:1000],
+            "package":       package,
+            "prompt_used":   last_prompt[:1000],
             "style_context": {k: v for k, v in style_context.items() if k != "analysis_cost"},
-            "cost":         total_cost,
-            "timestamp":    datetime.now(timezone.utc).isoformat(),
+            "cost":          total_cost,
+            "timestamp":     datetime.now(timezone.utc).isoformat(),
         }
         meta_path.write_text(json.dumps(meta, indent=2))
         saved_paths.append(str(png_path))
@@ -395,7 +485,7 @@ def fulfill_order(order: dict) -> bool:
                  tokens_used=0, cost_usd=0.0)   # already logged above; no-op here
 
     if not saved_paths:
-        print(f"[{MODULE_NAME}]   Order {order_id} failed — no thumbnails generated")
+        print(f"[{MODULE_NAME}]   Order {order_id} failed — no images generated ({gig_type})")
         return False
 
     # ── 6. Delivery email ──────────────────────────────────────────────────
@@ -413,7 +503,7 @@ def fulfill_order(order: dict) -> bool:
 
     print(
         f"[{MODULE_NAME}]   Order {order_id} done — "
-        f"{len(saved_paths)}/{qty} thumbnail(s), cost ${total_cost:.4f}"
+        f"{len(saved_paths)}/{qty} {gig_type} image(s), cost ${total_cost:.4f}"
     )
     return True
 
@@ -614,12 +704,41 @@ MOCK_ORDER = {
     "requirements":       "Finance channel. Video about living on $5 a day. Bold, MrBeast style.",
 }
 
+MOCK_LOGO_ORDER = {
+    "order_id":           "TEST_LOGO_001",
+    "buyer_username":     "testbuyer",
+    "gig_type":           "logo",
+    "package_tier":       "standard",
+    "business_name":      "NovaBuild",
+    "business_type":      "construction and renovation company",
+    "industry":           "real_estate",
+    "colors":             "navy blue and gold",
+    "style_preferences":  "modern, professional, trustworthy",
+    "special_instructions": "Keep it clean and minimal — no fancy effects",
+    "requirements":       "Logo for construction company called NovaBuild. Navy and gold. Modern.",
+}
+
+MOCK_SOCIAL_ORDER = {
+    "order_id":           "TEST_SOCIAL_001",
+    "buyer_username":     "testbuyer",
+    "gig_type":           "social_media",
+    "package_tier":       "basic",
+    "business_name":      "Bloom Bakery",
+    "business_type":      "artisan bakery",
+    "colors":             "pastel pink and cream with gold accents",
+    "style":              "elegant, warm, Instagram-aesthetic",
+    "special_instructions": "Posts should feel cozy and inviting",
+    "requirements":       "Instagram posts for artisan bakery. Pastel pink and cream. Elegant.",
+}
+
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--test",      action="store_true", help="Run with mock order")
-    parser.add_argument("--test-imap", action="store_true", help="Test IMAP connection only — no emails downloaded")
+    parser.add_argument("--test",       action="store_true", help="Run with mock thumbnail order")
+    parser.add_argument("--test-logo",  action="store_true", help="Run with mock logo order")
+    parser.add_argument("--test-social",action="store_true", help="Run with mock social media order")
+    parser.add_argument("--test-imap",  action="store_true", help="Test IMAP connection only")
     args = parser.parse_args()
 
     if args.test_imap:
@@ -655,8 +774,16 @@ if __name__ == "__main__":
                 print(f"[{MODULE_NAME}] Connection error: {e}")
 
     elif args.test:
-        print(f"[{MODULE_NAME}] Running test fulfillment with mock order...")
+        print(f"[{MODULE_NAME}] Running test fulfillment with mock thumbnail order...")
         success = fulfill_order(MOCK_ORDER)
+        print(f"[{MODULE_NAME}] Test result: {'SUCCESS' if success else 'FAILED'}")
+    elif args.test_logo:
+        print(f"[{MODULE_NAME}] Running test fulfillment with mock logo order...")
+        success = fulfill_order(MOCK_LOGO_ORDER)
+        print(f"[{MODULE_NAME}] Test result: {'SUCCESS' if success else 'FAILED'}")
+    elif args.test_social:
+        print(f"[{MODULE_NAME}] Running test fulfillment with mock social media order...")
+        success = fulfill_order(MOCK_SOCIAL_ORDER)
         print(f"[{MODULE_NAME}] Test result: {'SUCCESS' if success else 'FAILED'}")
     else:
         print(f"[{MODULE_NAME}] Checking for Fiverr orders...")

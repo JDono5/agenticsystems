@@ -14,6 +14,11 @@ def api_call_with_retry(fn, max_retries: int = 3, agent_name: str = "unknown"):
         try:
             return fn()
         except Exception as e:
+            # Quota / billing hard limits are not retry-able — re-raise immediately
+            # so callers can detect and abort rather than wasting retries.
+            err_str = str(e)
+            if "insufficient_quota" in err_str or "billing hard limit" in err_str:
+                raise
             wait = 2 ** attempt  # 1s, 2s, 4s
             if attempt < max_retries - 1:
                 print(
